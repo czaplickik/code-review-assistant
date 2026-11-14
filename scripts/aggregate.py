@@ -31,6 +31,19 @@ def clamp_points(v):
         return None
 
 
+def certainty_of(x, conf):
+    try:
+        c = int(x.get("certainty"))
+        return max(0, min(100, c))
+    except (TypeError, ValueError):
+        return 90 if conf == "verified" else 70
+
+
+def counts(x):
+    """Findings below the certainty threshold are kept for the reader but do not count."""
+    return not x.get("suppressed")
+
+
 def normalize_finding(x, path, problems, where):
     if not isinstance(x, dict):
         problems.append(f"{where}: finding is not an object")
@@ -58,7 +71,8 @@ def normalize_finding(x, path, problems, where):
             "reason": x.get("reason") or "", "evidence": ev[:4],
             "affected_symbols": list(x.get("affected_symbols") or []),
             "consequences": list(x.get("consequences") or []), "confidence": conf,
-            "limitations": list(x.get("limitations") or []), "tags": list(x.get("tags") or [])}
+            "limitations": list(x.get("limitations") or []), "tags": list(x.get("tags") or []),
+            "certainty": certainty_of(x, conf)}
 
 
 def load_semantic(rdir, a, problems):
@@ -214,7 +228,7 @@ def human_review(paths, by_path, a):
         f = by_path.get(p)
         if not f:
             continue
-        top = sorted((x for x in f["findings"] if x["points"] > 0),
+        top = sorted((x for x in f["findings"] if x["points"] > 0 and counts(x)),
                      key=lambda x: (-x["critical"], -x["points"]))[:3]
         reasons = [f"{x['title']} ({x['points']} pt{', critical' if x['critical'] else ''})" for x in top]
         replaces = f.pop("_replaces", [])
@@ -270,9 +284,24 @@ def main():
             print(f"  - {p}", file=sys.stderr)
         sys.exit(1)
     incomplete = bool(missing)
-    lim = [l for l in a.get("limitations", []) if not l.startswith("Semantic analysis missing")]
+    min_cert = int((cfg.get("scoring") or {}).get("min_certainty", 70))
+    suppressed = 0
+    for f in a["files"]:
+        for x in f["findings"]:
+            x.pop("suppressed", None)
+            if x["source"] == "semantic" and x.get("certainty", 100) < min_cert:
+                x["suppressed"] = True
+                x["critical"] = False
+                if "low_certainty" not in x["tags"]:
+                    x["tags"].append("low_certainty")
+                suppressed += 1
+    lim = [l for l in a.get("limitations", []) if not l.startswith("Semantic analysis missing")
+           and "below certainty" not in l]
     if missing:
         lim.append(f"Semantic analysis missing for {len(missing)} file(s); review mode cannot go below ai-review-only.")
+    if suppressed:
+        lim.append(f"{suppressed} model finding(s) below certainty {min_cert} are listed as 'to confirm' "
+                   f"and do not count towards scores or the review mode.")
     a["limitations"] = lim
 
     # ---- plan drift
@@ -302,7 +331,8 @@ def main():
     for f in a["files"]:
         if f["tier"] in ("excluded", "mechanical"):
             continue
-        behavioural = [x for x in f["findings"] if x["points"] >= 2 and "drift" not in x.get("tags", [])]
+        behavioural = [x for x in f["findings"] if counts(x) and x["points"] >= 2
+                       and not set(x.get("tags", [])) & {"drift", "history"}]
         if behavioural and f.get("fan_in", 0) >= fan.get("threshold", 20):
             pts = fan.get("high_points", 3) if f["fan_in"] >= fan.get("high_threshold", 60) else fan.get("points", 2)
             f["findings"].append({
@@ -313,8 +343,8 @@ def main():
                              for p in f["fan_in_files"][:3]],
                 "affected_symbols": f["symbols"][:3], "consequences": [], "confidence": "verified",
                 "limitations": [], "tags": ["blast_radius"]})
-        logic = [x for x in f["findings"] if x["dimension"] in ("core_logic", "data_integrity", "security")
-                 and x["points"] >= 2 and "drift" not in x.get("tags", [])]
+        logic = [x for x in f["findings"] if counts(x) and x["dimension"] in ("core_logic", "data_integrity", "security")
+                 and x["points"] >= 2 and not set(x.get("tags", [])) & {"drift", "history"}]
         if logic and not f["is_test"] and f["language"] in CODE_LANGS and not f.get("test_changed"):
             has = bool(f.get("linked_tests"))
             f["findings"].append({
@@ -334,10 +364,11 @@ def main():
         for x in f["findings"]:
             n += 1
             x["id"] = f"f-{n:04d}"
-        f["score"] = round(sum(x["points"] * float(weights.get(x["confidence"], 1.0)) for x in f["findings"]))
-        f["critical"] = any(x["critical"] for x in f["findings"])
+        live = [x for x in f["findings"] if counts(x)]
+        f["score"] = round(sum(x["points"] * float(weights.get(x["confidence"], 1.0)) for x in live))
+        f["critical"] = any(x["critical"] for x in live)
         dims = {}
-        for x in f["findings"]:
+        for x in live:
             dims[x["dimension"]] = max(dims.get(x["dimension"], 0), x["points"])
         f["dimensions"] = dims
     # ---- ranking: critical first, then the most severe finding (with reach bonus), then the sum
@@ -348,6 +379,8 @@ def main():
     for f in a["files"]:
         sev, raw = 0, 0
         for x in f["findings"]:
+            if not counts(x):
+                continue
             p = x["points"]
             raw = max(raw, p)
             if p >= 2 and not set(x.get("tags", [])) & {"drift", "blast_radius", "missing_test"} and \
@@ -371,7 +404,8 @@ def main():
 
     # ---- verdict
     analysed = [f for f in a["files"] if f["tier"] in ("deep", "light")]
-    allf = [(f, x) for f in a["files"] for x in f["findings"]]
+    # policy works on counted findings; history is a risk modifier, not a behaviour change
+    allf = [(f, x) for f in a["files"] for x in f["findings"] if counts(x) and "history" not in x.get("tags", [])]
     sd = {"security", "data_integrity"}
     ho = pol.get("human_only") or {}
     ah = pol.get("ai_human") or {}
@@ -463,7 +497,7 @@ def main():
     if human:
         print(f"human review: {len(human)} file(s)")
     for i, f in enumerate(order[:10], 1):
-        top = max(f["findings"], key=lambda x: (x["critical"], x["points"]), default=None)
+        top = max((x for x in f["findings"] if counts(x)), key=lambda x: (x["critical"], x["points"]), default=None)
         print(f"{i:>3}. sev {f['severity']} score {f['score']:>3}{' !' if f['critical'] else '  '} {f['path']}"
               + (f"  — {top['title']}" if top else ""))
     if problems:

@@ -91,6 +91,14 @@ signals:
   weakened_test:     {points: 4}
   migration_edited:  {points: 4, critical: true}
   critical_module:   {points: 2}
+  # files repeatedly fixed in the recent history are more likely to break again
+  history:
+    months: 12
+    fix_pattern: '(?i)\b(fix(es|ed)?|bug|hotfix|regression|revert|incident|defect|naprawa|poprawka|patch)\b'
+    threshold: 3          # fix commits in the window -> finding
+    points: 1
+    high_threshold: 6
+    high_points: 2
 
 # Review order: critical files first, then by severity (the file's most serious finding),
 # then by score (sum of points). A finding counts reach_bonus higher for ranking when the file is
@@ -104,6 +112,9 @@ ranking:
 scoring:
   # Multiplier per confidence. 1.0 for both = inferred findings count fully (still marked).
   confidence_weight: {verified: 1.0, inferred: 1.0}
+  # Model findings carry certainty 0-100. Below this they do not count towards scores and the
+  # review mode, and reports list them separately as "to confirm".
+  min_certainty: 70
 
 # Review mode policy, evaluated top-down. The first matching rule decides.
 policy:

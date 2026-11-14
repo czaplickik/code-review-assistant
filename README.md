@@ -62,10 +62,12 @@ Deterministic scripts do the repository work; the model only does the semantic p
    diffs, spec/plan matched to the change, feature folder.
 2. `triage.py` — rulesets per file, exclusions, mechanical changes (repeated patterns, renames,
    deleted modules with a dangling-reference check), deterministic rules, fan-in, linked tests,
+   bug history from `git log` (files fixed often),
    tiers and batches (with the subagent model per tier).
 3. Subagents per batch — role, interactions, semantic findings, what to verify.
 4. `aggregate.py` — merge, blast-radius and missing-test signals, scores (0–5 points per
-   finding, summed), ranking (critical first, then severity, then score), review-mode policy,
+   finding, summed; model findings below the certainty threshold are listed but not counted),
+   ranking (critical first, then severity, then score), review-mode policy,
    the human reading list with questions, `ai-review-focus.md`, plan drift.
 5. `render_report.py` — self-contained HTML, published into the feature folder with
    `index.md` refreshed and the previous version moved to `history/`.

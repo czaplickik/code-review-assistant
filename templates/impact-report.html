@@ -77,6 +77,10 @@ details.focus-sec > summary { font-size: 14px; font-weight: 650; padding: 6px 0;
 .dang pre { margin: 2px 0 0; padding: 3px 8px; background: var(--crit-bg); border-radius: 4px; font-size: 11px; overflow-x: auto; }
 .dang-tag { display: inline-flex; align-items: center; height: 18px; padding: 0 6px; border-radius: 3px; background: var(--crit); color: #fff; font-size: 10.5px; font-weight: 800; white-space: nowrap; }
 .dang-ok { font-size: 11px; color: var(--ok); white-space: nowrap; }
+.bug-tag { display: inline-flex; align-items: center; height: 18px; padding: 0 5px; border-radius: 3px; font: 800 9.5px/1 var(--font); letter-spacing: .04em; text-transform: uppercase; color: var(--warn); background: var(--warn-bg); border: 1px solid var(--warn); white-space: nowrap; }
+.fc.suppressed { opacity: .62; border-left-color: var(--border-strong); background: var(--surface-2); }
+.fc.suppressed .fc-title { font-weight: 500; }
+.fc.suppressed .cert-tag { color: var(--warn); font-weight: 700; }
 .stat.human { background: var(--m-aih-bg); } .stat.human .v { color: var(--m-aih); }
 .human-tag { display: inline-flex; align-items: center; height: 18px; padding: 0 5px; border-radius: 3px; font: 800 9.5px/1 var(--font); letter-spacing: .06em; text-transform: uppercase; color: var(--m-aih); border: 1.5px solid var(--m-aih); white-space: nowrap; }
 .fh .fh-crit { gap: 3px; flex-wrap: wrap; }
@@ -303,12 +307,15 @@ details.focus-sec > summary { font-size: 14px; font-weight: 650; padding: 6px 0;
   arr(A.files).forEach(function (rawF, idx) {
     var f = obj(rawF);
     if (!f.path) return;
-    var findings = arr(f.findings).map(obj).filter(function (x) { return Object.keys(x).length > 0; });
-    findings.forEach(function (x) { x.points = C.clampPts(x.points); x.critical = !!x.critical; });
+    var allF = arr(f.findings).map(obj).filter(function (x) { return Object.keys(x).length > 0; });
+    allF.forEach(function (x) { x.points = C.clampPts(x.points); x.critical = !!x.critical; });
+    var isSup = function (x) { return x.suppressed === true || strs(x.tags).indexOf('low_certainty') >= 0; };
+    var findings = allF.filter(function (x) { return !isSup(x); });
+    var suppressed = allF.filter(isSup).sort(function (a, b) { return b.points - a.points; });
     findings.sort(function (a, b) { return (b.critical ? 1 : 0) - (a.critical ? 1 : 0) || b.points - a.points; });
     var dims = {};
     var rd = obj(f.dimensions);
-    Object.keys(rd).forEach(function (k) { if (rd[k] != null) dims[k] = C.clampPts(rd[k]); });
+    if (!suppressed.length) Object.keys(rd).forEach(function (k) { if (rd[k] != null) dims[k] = C.clampPts(rd[k]); });
     findings.forEach(function (x) {
       var d = str(x.dimension) || 'unspecified';
       dims[d] = Math.max(dims[d] == null ? 0 : dims[d], x.points);
@@ -317,7 +324,8 @@ details.focus-sec > summary { font-size: 14px; font-weight: 650; padding: 6px 0;
     Object.keys(dims).forEach(function (k) { maxPts = Math.max(maxPts, dims[k]); });
     var scoreRaw = Number(f.score);
     var F = {
-      raw: f, idx: idx, path: str(f.path), findings: findings, dims: dims, maxPts: maxPts,
+      raw: f, idx: idx, path: str(f.path), findings: findings, suppressed: suppressed, dims: dims, maxPts: maxPts,
+      hist: f.history && typeof f.history === 'object' ? f.history : null,
       score: f.score != null && isFinite(scoreRaw) ? scoreRaw : findings.reduce(function (a, x) { return a + x.points; }, 0),
       critical: !!f.critical || findings.some(function (x) { return x.critical; }),
       size: num(f.added_lines) + num(f.deleted_lines),
@@ -330,7 +338,8 @@ details.focus-sec > summary { font-size: 14px; font-weight: 650; padding: 6px 0;
     F.search = [F.path, str(f.old_path), strs(f.symbols).join(' '), str(f.role),
       findings.map(function (x) { return [x.title, x.reason, x.rule_id, strs(x.affected_symbols).join(' ')].map(str).join(' '); }).join(' ')
     ].join('\n').toLowerCase();
-    findings.forEach(function (x) { if (x.id != null) findingById[str(x.id)] = { finding: x, file: F }; });
+    F.bugProne = !!(F.hist && num(F.hist.fixes) >= 3);
+    allF.forEach(function (x) { if (x.id != null) findingById[str(x.id)] = { finding: x, file: F }; });
     if (!byPath[F.path]) byPath[F.path] = F;
     allFiles.push(F);
   });
@@ -723,6 +732,13 @@ details.focus-sec > summary { font-size: 14px; font-weight: 650; padding: 6px 0;
     if (ks.length > 3) out.push(h('span', { class: 'dchip more', 'data-tip': ks.slice(3).map(function (k) { return C.dimLabel(k) + ': ' + F.dims[k]; }).join('\n') }, '+' + (ks.length - 3)));
     return out;
   }
+  function histText(hi) {
+    hi = obj(hi);
+    var bits = [];
+    if (hi.commits != null) bits.push(C.plural(hi.commits, 'commit'));
+    if (hi.fixes != null) bits.push(C.plural(hi.fixes, 'fix', 'fixes'));
+    return (bits.join(' / ') || 'history') + (hi.months != null ? ' in ' + C.plural(hi.months, 'month') : '') + (hi.last_fix ? ', last fix ' + str(hi.last_fix) : '');
+  }
   function sevScore(F) {
     return h('span', { class: 'sevb', 'data-tip': 'Severity ' + F.sev + ' = most serious finding' + (F.reach ? ' +1 for reach (many dependants)' : '') + '\nScore ' + F.score + ' = sum of all finding points' },
       [h('span', { class: 'sv p' + F.sev }, 'sev ' + F.sev), F.reach ? h('span', { class: 'reach' }, 'reach +1') : null, h('span', { class: 'sc' }, '\u03A3' + F.score)]);
@@ -730,7 +746,8 @@ details.focus-sec > summary { font-size: 14px; font-weight: 650; padding: 6px 0;
   function buildRow(F) {
     var head = h('div', { class: 'fh', role: 'button', tabindex: '0', 'aria-expanded': 'false' }, [
       h('span', { class: 'rank', 'data-tip': 'Rank ' + F.rank + ' of ' + ranked.length }, '#' + F.rank),
-      h('span', { class: 'fh-crit' }, [F.critical ? C.critFlag() : null, F.human ? h('span', { class: 'human-tag', 'data-tip': 'Policy: a human should read this file' }, 'human') : null]),
+      h('span', { class: 'fh-crit' }, [F.critical ? C.critFlag() : null, F.human ? h('span', { class: 'human-tag', 'data-tip': 'Policy: a human should read this file' }, 'human') : null,
+        F.bugProne ? h('span', { class: 'bug-tag', 'data-tip': histText(F.hist) }, 'bug-prone') : null]),
       sevScore(F),
       h('span', { class: 'fh-st' }, [C.statusEl(F.status), F.untracked ? h('span', { class: 'untracked-tag', 'data-tip': 'Untracked: new file not yet in git' }, 'U') : null]),
       C.pathEl(F.path, 'fh-path'),
@@ -809,6 +826,7 @@ details.focus-sec > summary { font-size: 14px; font-weight: 650; padding: 6px 0;
     if (fl) mrow('Flow', h('span', null, fl.name));
     mrow('Tier', [h('span', { class: 'badge' }, F.tier), strs(f.tier_reasons).length ? h('span', { class: 'muted' }, strs(f.tier_reasons).join(' · ')) : null,
       f.mechanical_kind ? h('span', { class: 'badge outline' }, str(f.mechanical_kind)) : null]);
+    if (F.hist) mrow('History', [h('span', { class: F.bugProne ? 'warn' : '' }, histText(F.hist)), F.bugProne ? h('span', { class: 'bug-tag' }, 'bug-prone') : null]);
     if (f.semantic_done === false && F.tier !== 'mechanical') mrow('Semantic pass', h('span', { class: 'warn' }, 'not done: model findings missing'));
     if (f.language || f.ruleset) mrow('Ruleset', [f.language ? h('span', { class: 'badge outline' }, str(f.language)) : null, f.ruleset ? h('code', null, str(f.ruleset)) : h('span', { class: 'warn' }, 'base rules only')]);
     if (strs(f.symbols).length) mrow('Symbols', h('span', { class: 'mono', style: { 'word-break': 'break-all' } }, strs(f.symbols).join(', ')));
@@ -816,7 +834,10 @@ details.focus-sec > summary { font-size: 14px; font-weight: 650; padding: 6px 0;
 
     // findings
     right.appendChild(h('div', { class: 'blk' }, [h('div', { class: 'bh' }, ['Why review it', h('span', { class: 'badge' }, String(F.findings.length))]),
-      F.findings.length ? F.findings.map(function (x) { return findingCard(x, F); }) : h('div', { class: 'empty' }, 'No findings on this file.')]));
+      F.findings.length ? F.findings.map(function (x) { return findingCard(x, F); }) : h('div', { class: 'empty' }, 'No findings on this file.'),
+      F.suppressed.length ? h('div', { class: 'sup' }, [h('div', { class: 'bh', style: { 'margin-top': '10px' } }, ['To confirm (low certainty)', h('span', { class: 'badge' }, String(F.suppressed.length)),
+        h('span', { class: 'muted', style: { 'text-transform': 'none', 'letter-spacing': '0', 'font-weight': '400' } }, 'not counted in score, severity or mode')]),
+        F.suppressed.map(function (x) { return findingCard(x, F, true); })]) : null]));
     // verify
     var wtv = strs(f.what_to_verify);
     if (wtv.length) {
@@ -849,15 +870,17 @@ details.focus-sec > summary { font-size: 14px; font-weight: 650; padding: 6px 0;
     return out;
   }
 
-  function findingCard(x, F) {
+  function findingCard(x, F, sup) {
     var inf = x.confidence !== 'verified';
     var ev = arr(x.evidence).map(obj).filter(function (e) { return e.path || e.snippet; });
     var cons = strs(x.consequences), lim = strs(x.limitations), syms = strs(x.affected_symbols);
-    return h('div', { class: 'fc' + (x.critical ? ' crit' : '') + (inf ? ' inferred' : ' verified'), id: x.id != null ? 'fnd-' + str(x.id) : null }, [
-      h('div', { class: 'fc-h' }, [C.pts(x.points), x.critical ? C.critFlag('Critical rule: this finding flags the file as critical') : null,
+    var cert = x.certainty != null && isFinite(Number(x.certainty)) ? Math.round(Number(x.certainty)) : null;
+    return h('div', { class: 'fc' + (x.critical && !sup ? ' crit' : '') + (inf ? ' inferred' : ' verified') + (sup ? ' suppressed' : ''), id: x.id != null ? 'fnd-' + str(x.id) : null }, [
+      h('div', { class: 'fc-h' }, [C.pts(x.points), x.critical && !sup ? C.critFlag('Critical rule: this finding flags the file as critical') : null,
         h('span', { class: 'fc-title' }, str(x.title) || str(x.rule_id) || 'Finding'), h('span', { class: 'spacer' }), C.dimChip(x.dimension), C.conf(x.confidence)]),
       h('div', { class: 'fc-meta' }, [x.rule_id ? h('code', null, str(x.rule_id)) : null, x.source ? h('span', { class: 'badge outline' }, str(x.source)) : null,
-        syms.length ? h('span', { class: 'mono' }, syms.join(', ')) : null]),
+        syms.length ? h('span', { class: 'mono' }, syms.join(', ')) : null,
+        cert != null ? h('span', { class: 'cert-tag', 'data-tip': 'Model certainty (0–100)' + (sup ? ': below the threshold, so not counted' : '') }, 'certainty ' + cert) : null]),
       x.reason ? h('p', { class: 'fc-reason' }, str(x.reason)) : null,
       ev.length ? h('div', { class: 'fc-ev' }, ev.map(function (e) {
         var loc = (e.path && e.path !== F.path ? str(e.path) : C.basename(e.path || F.path)) +

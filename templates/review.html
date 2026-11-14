@@ -137,6 +137,13 @@ tr.mismatch td.act { color: var(--sev-blocker); font-weight: 700; }
 .rel li { font-size: 12px; align-items: baseline; }
 .rel .loc2 { font-family: var(--mono); font-size: 11.5px; }
 .meta-line { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 11px; color: var(--text-3); }
+details.tc { margin-top: 18px; }
+details.tc > summary { padding: 6px 0; font-size: 13px; gap: 8px; }
+details.tc .tc-t { font-weight: 700; }
+.fr.unconf { opacity: .65; }
+.fr.unconf .sev.blocker { background: var(--sev-blocker-bg); color: var(--sev-blocker); }
+.fh .ttl .cert-tag { font-weight: 400; font-style: normal; }
+.cert-tag.low { color: var(--warn); font-weight: 700; }
 .files-tbl td.p { font-family: var(--mono); font-size: 11.5px; }
 .files-tbl tr.click { cursor: pointer; }
 .files-tbl tr.click:hover td { background: var(--surface-2); }
@@ -225,6 +232,13 @@ tr.mismatch td.act { color: var(--sev-blocker); font-weight: 700; }
   findings.sort(function (a, b) { return sevRank(a.sev) - sevRank(b.sev) || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0) || num(a.raw.line_start) - num(b.raw.line_start) || a.idx - b.idx; });
   var byId = {};
   findings.forEach(function (F) { byId[F.id] = F; });
+  var toConfirm = arr(R.to_confirm).map(obj).filter(function (x) { return Object.keys(x).length; }).map(function (x, i) {
+    var F = { raw: x, idx: i, id: str(x.id) || ('U-' + (i + 1)), sev: sevOf(x.severity), cat: str(x.category),
+      title: str(x.title) || str(x.description).slice(0, 90) || 'Finding', path: str(x.path), inferred: x.confidence !== 'verified', unconfirmed: true };
+    F.loc = loc(F.path, x.line_start, x.line_end);
+    return F;
+  }).sort(function (a, b) { return num(b.raw.certainty) - num(a.raw.certainty); });
+  var certOf = function (x) { return x.certainty != null && isFinite(Number(x.certainty)) ? Math.round(Number(x.certainty)) : null; };
 
   var counts = { blocker: 0, major: 0, minor: 0, info: 0 };
   findings.forEach(function (F) { counts[F.sev]++; });
@@ -443,7 +457,7 @@ tr.mismatch td.act { color: var(--sev-blocker); font-weight: 700; }
     var head = h('div', { class: 'fh', role: 'button', tabindex: '0', 'aria-expanded': 'false' }, [
       sevBadge(F.sev),
       h('span', { class: 'cat', 'data-tip': catLabel(F.cat) }, catLabel(F.cat)),
-      h('span', { class: 'ttl', 'data-tip': F.title }, F.title),
+      h('span', { class: 'ttl', 'data-tip': F.title }, [F.title, certOf(F.raw) != null ? h('span', { class: 'cert-tag', style: { 'margin-left': '8px' }, 'data-tip': 'Model certainty (0–100)' }, 'certainty ' + certOf(F.raw)) : null]),
       h('span', { class: 'loc', 'data-tip': F.loc || 'no location' }, h('bdi', null, F.loc || '—')),
       C.conf(F.raw.confidence),
       h('span', { class: 'caret' }, '▸')
@@ -486,6 +500,7 @@ tr.mismatch td.act { color: var(--sev-blocker); font-weight: 700; }
     if (refs.length) right.appendChild(h('div', { class: 'blk' }, [h('div', { class: 'bh' }, 'References'), C.refsEl(refs, kinds)]));
     right.appendChild(h('div', { class: 'blk meta-line' }, [h('code', null, F.id), h('span', null, catLabel(F.cat)), C.conf(x.confidence),
       x.candidate ? h('span', { 'data-tip': 'Deterministic hint that led to this finding' }, ['candidate ', h('code', null, str(x.candidate))]) : null,
+      certOf(x) != null ? h('span', { class: 'cert-tag' }, 'certainty ' + certOf(x)) : null,
       F.loc ? C.copyBtn(F.loc, 'Copy location') : null]));
     return h('div', { class: 'fd' }, [left, right]);
   }
@@ -613,6 +628,41 @@ tr.mismatch td.act { color: var(--sev-blocker); font-weight: 700; }
     if ((e.key === 'o' || (e.key === 'Enter' && (onHead || t === document.body))) && cur) { e.preventDefault(); toggle(cur._F); return; }
     if (e.key === ' ' && onHead) { e.preventDefault(); toggle(t.parentNode._F); }
   });
+
+  /* ================================================================ */
+  /* to confirm (low certainty)                                       */
+  /* ================================================================ */
+  if (toConfirm.length) {
+    var tcMd = function () {
+      return ['# ' + title + ': to confirm (low certainty)', ''].concat(toConfirm.map(function (F) {
+        var where = F.path ? F.path + (F.raw.line_start != null ? ':' + F.raw.line_start : '') : '(no location)';
+        var c = certOf(F.raw);
+        return '- [ ] [' + F.sev + '] ' + where + ' \u2014 ' + F.title.replace(/\s+/g, ' ') + (c != null ? ' (certainty ' + c + ')' : '') + (F.raw.suggestion ? ' \u2014 ' + str(F.raw.suggestion).replace(/\s+/g, ' ') : '');
+      })).join('\n') + '\n';
+    };
+    var tcBox = h('div', { class: 'rows tc-rows' });
+    var tcDet = h('details', { class: 'disc tc' }, [h('summary', null, [
+      h('span', { class: 'tc-t' }, 'To confirm (' + toConfirm.length + ')'), h('span', { class: 'muted' }, '— low certainty, not counted'),
+      h('span', { style: { 'margin-left': 'auto' } }, C.copyBtn(tcMd, 'Copy as Markdown'))]), tcBox]);
+    tcDet.addEventListener('toggle', function () {
+      if (!tcDet.open || tcDet._r) return;
+      tcDet._r = true;
+      toConfirm.forEach(function (F) {
+        var c = certOf(F.raw);
+        var head = h('div', { class: 'fh', role: 'button', tabindex: '0' }, [sevBadge(F.sev), h('span', { class: 'cat' }, catLabel(F.cat)),
+          h('span', { class: 'ttl', 'data-tip': F.title }, [F.title, c != null ? h('span', { class: 'cert-tag low', style: { 'margin-left': '8px' } }, 'certainty ' + c) : null]),
+          h('span', { class: 'loc', 'data-tip': F.loc || 'no location' }, h('bdi', null, F.loc || '\u2014')), C.conf(F.raw.confidence), h('span', { class: 'caret' }, '\u25B8')]);
+        var body = h('div', { hidden: true });
+        var row = h('div', { class: 'fr unconf' + (F.inferred ? ' inferred' : '') }, [head, body]);
+        head.addEventListener('click', function () {
+          if (!row._built) { body.appendChild(detail(F)); row._built = true; }
+          body.hidden = !body.hidden; row.classList.toggle('open', !body.hidden);
+        });
+        tcBox.appendChild(row);
+      });
+    });
+    app.appendChild(tcDet);
+  }
 
   /* ================================================================ */
   /* per-file view                                                    */

@@ -78,9 +78,15 @@ Families: `logic` (Logic), `security_data` (Security & Data), `contracts_integra
   "affected_symbols": ["OrderController.refund"],
   "consequences": ["Horizontal privilege escalation"],
   "confidence": "verified",
+  "certainty": 95,
   "limitations": []
 }
 ```
+
+`certainty` (0–100, model findings): below `scoring.min_certainty` (default 70) a finding gets
+`suppressed: true` and tag `low_certainty` — kept for the reader, not counted in score,
+severity, critical or the review mode. Deterministic findings have no certainty.
+Files may carry `history: {"commits", "fixes", "last_fix", "months"}` from `git log`.
 
 `points` 0–5. `source`: `deterministic` | `semantic`. `side`: `new` | `old`.
 `tags` (optional list): `weakened_test`, `migration_edited`, `drift`, `blast_radius`, `missing_test`,
@@ -336,9 +342,14 @@ test for changed behaviour), `minor` (worth fixing: readability, small inconsist
   "suggestion": "what to do instead, in words (no patch)",
   "refs": ["docs/architecture/conventions.md#exceptions", "spec.md#fr-3-refund-amount-cap"],
   "confidence": "verified|inferred",
+  "certainty": 85,
   "candidate": "C-007 or null (deterministic hint that led to it)"
 }
 ```
+
+Findings with `certainty` below `scoring.min_certainty` move from `findings` to `to_confirm`
+in `review.json` (ids `U-…`), are not counted in `summary`, and appear in `review.md` under
+"To confirm".
 
 `id` is assigned by `review.py merge`; the model omits it.
 

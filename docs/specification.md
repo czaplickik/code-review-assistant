@@ -189,6 +189,14 @@ Rule kinds:
 - Inferred findings count fully but are visibly marked. Weighting by confidence is a
   `rules.yaml` option.
 
+## 4.3a. Certainty Filter
+
+Every model finding carries `certainty` 0–100 (rubric in `anchors.md` and the review
+checklists: 90+ only when the whole code path, including called methods, was read). Findings
+below `scoring.min_certainty` (default 70) are kept and shown as "to confirm", but they do not
+count towards score, severity, critical, the review mode or the human reading list. Reviews
+move them to `to_confirm` and a separate section of `review.md`.
+
 ## 4.4. Mandatory Built-in Signals
 
 | Signal | Kind | Notes |
@@ -200,6 +208,7 @@ Rule kinds:
 | Edited already-applied migration | deterministic | critical |
 | Convention deviation | semantic | compared with documented conventions **and** 3–5 neighbouring files in the same package/namespace; intentional new patterns are distinguished from inconsistencies |
 | Plan drift | deterministic + semantic | file outside the plan, plan item without implementation |
+| Bug history | deterministic | fix commits touching the file in the last 12 months (`git log`, configurable pattern); ≥ 3 → 1 point, ≥ 6 → 2 points; shown as file history; a risk modifier, not used by the review-mode policy |
 
 # 5. Language Rulesets
 
@@ -566,7 +575,8 @@ Done (0.4.0): all stages and skills, Java/Spring and .NET rulesets, reviews, kno
 folders, marketplace; validated on the fixtures and on one real change (182 files).
 
 Next:
-1. Calibration on more real changes: turn each into a fixture with `expected.json`.
+1. Calibration on more real changes: turn each into a fixture with `expected.json`
+   (including `min_certainty` and the bug-history thresholds).
 2. Group near-identical changes across files ("same change in N files") so a human reads one.
 3. Cross-repository index for one ticket spanning several repositories.
 4. Measure cost after deleted-module grouping and cheaper light-batch models.

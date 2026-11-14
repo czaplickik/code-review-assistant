@@ -54,3 +54,17 @@ Severity: `blocker` = contradicted or wrong business rule / security requirement
 `minor` = unrequested low-risk behaviour, test gap on a simple rule; `info` = ambiguity in
 the spec itself (quote it). Quote the spec (≤ 2 sentences) in `description` when it decides
 the finding, and put the `path#section` in `refs`.
+
+## Certainty (every finding)
+
+Give each finding `certainty` 0–100 — how sure you are the problem is real, after checking:
+
+| certainty | when |
+|---|---|
+| 90–100 | you read the whole code path (incl. the called methods / config) and the problem is shown by it |
+| 70–89 | strong evidence in the code you read; one assumption left unchecked — name it in `limitations` |
+| 40–69 | plausible, but you did not read something decisive (callee, config, caller) |
+| < 40 | a hunch — usually leave it out |
+
+Findings below 70 are not counted and are shown to the reader as "to confirm". Prefer checking
+over guessing: reading the callee usually turns a 50 into a 95 or into no finding at all.

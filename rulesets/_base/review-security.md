@@ -42,3 +42,17 @@ could do, not style. Use the stack-specific checklist listed next to this one.
 
 Describe the attack in one sentence ("any authenticated customer can POST a refund for another
 customer's order by changing orderId"). `verified` only when the code path is shown end to end.
+
+## Certainty (every finding)
+
+Give each finding `certainty` 0–100 — how sure you are the problem is real, after checking:
+
+| certainty | when |
+|---|---|
+| 90–100 | you read the whole code path (incl. the called methods / config) and the problem is shown by it |
+| 70–89 | strong evidence in the code you read; one assumption left unchecked — name it in `limitations` |
+| 40–69 | plausible, but you did not read something decisive (callee, config, caller) |
+| < 40 | a hunch — usually leave it out |
+
+Findings below 70 are not counted and are shown to the reader as "to confirm". Prefer checking
+over guessing: reading the callee usually turns a 50 into a 95 or into no finding at all.

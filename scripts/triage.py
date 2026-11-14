@@ -20,6 +20,12 @@ from _common import (changed_lines, git, glob_match, largest_added_block, load_c
 WS = re.compile(r"\s+")
 
 
+def git_ok_history(root):
+    import subprocess
+    return subprocess.run(["git", "rev-parse", "--verify", "-q", "HEAD"], cwd=root,
+                          capture_output=True).returncode == 0
+
+
 def norm_line(body, self_name):
     s = WS.sub(" ", body.strip())
     if self_name:
@@ -504,6 +510,45 @@ def main():
                     cands.extend(basenames.get(m.expand(t), []))
         f["linked_tests"] = sorted(set(cands))
         f["test_changed"] = any(t in changed_paths for t in f["linked_tests"]) if f["linked_tests"] else False
+
+    # ---- bug history: how often each file was fixed recently (one git log for the whole repo)
+    hist_cfg = sig.get("history") or {}
+    if hist_cfg and git_ok_history(root):
+        fix_rx = re.compile(hist_cfg.get("fix_pattern", r"(?i)\bfix"))
+        months = int(hist_cfg.get("months", 12))
+        log = git("log", f"--since={months}.months", "--no-merges", "--name-only", "--format=%x00%ad%x01%s",
+                  "--date=short", ctx.base_commit, cwd=root, ok=(0, 128))
+        stats = defaultdict(lambda: {"commits": 0, "fixes": 0, "last_fix": None})
+        for block in log.split("\0")[1:]:
+            head, _, names = block.partition("\n")
+            date, _, subject = head.partition("\x01")
+            is_fix = bool(fix_rx.search(subject))
+            for name in names.split("\n"):
+                name = name.strip()
+                if not name:
+                    continue
+                st = stats[name]
+                st["commits"] += 1
+                if is_fix:
+                    st["fixes"] += 1
+                    st["last_fix"] = st["last_fix"] or date
+        for f in a["files"]:
+            key = f.get("old_path") or f["path"]
+            st = stats.get(f["path"]) or stats.get(key)
+            if not st or f["status"] == "added":
+                continue
+            f["history"] = {**st, "months": months}
+            if f["tier"] in ("excluded", "mechanical") or f["status"] == "deleted":
+                continue
+            fixes = st["fixes"]
+            pts = hist_cfg.get("high_points", 2) if fixes >= hist_cfg.get("high_threshold", 6) else \
+                hist_cfg.get("points", 1) if fixes >= hist_cfg.get("threshold", 3) else 0
+            if pts:
+                f["findings"].append(make_finding(
+                    "base.history.bug-prone", "core_logic", pts, False,
+                    f"Bug-prone file: {fixes} fix commits in {months} months",
+                    f"{st['commits']} commits, {fixes} of them fixes (last {st['last_fix']}); changes here broke "
+                    f"things before — review the edge cases.", [], tags=["history"]))
 
     # ---- large added block signal
     lb = sig.get("large_block") or {}

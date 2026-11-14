@@ -444,6 +444,7 @@ svg.tm rect.tf.crit { stroke: var(--crit); stroke-width: 2.5; }
 svg.tm rect.tf.fdel { fill: var(--surface-3); stroke-dasharray: 3 2; }
 svg.tm .ldel { fill: var(--text-3); font-style: italic; }
 svg.tm .tm-mod > rect.mbg.mdel { fill: var(--surface-2); stroke-dasharray: 4 3; }
+.cert-tag { font-size: 10.5px; color: var(--text-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .inf-tag { display: inline-flex; align-items: center; height: 15px; padding: 0 4px; border-radius: 3px; border: 1px dashed var(--text-3); color: var(--text-2); font: italic 600 9.5px/1 var(--font); white-space: nowrap; flex: none; }
 svg.tm .tf-l { font-size: 10px; }
 svg.tm .fp0 { fill: var(--p0); } svg.tm .fp1 { fill: var(--p1); } svg.tm .fp2 { fill: var(--p2); }

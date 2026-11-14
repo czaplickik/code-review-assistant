@@ -59,6 +59,20 @@ is almost never critical.
   skipped tests, expected values bent to match new code), a "fix" that only changes the expected
   value — say whether the old or the new expectation matches the requirement.
 
+## Certainty (every finding)
+
+Give each finding `certainty` 0–100 — how sure you are the problem is real, after checking:
+
+| certainty | when |
+|---|---|
+| 90–100 | you read the whole code path (incl. the called methods / config) and the problem is shown by it |
+| 70–89 | strong evidence in the code you read; one assumption left unchecked — name it in `limitations` |
+| 40–69 | plausible, but you did not read something decisive (callee, config, caller) |
+| < 40 | a hunch — usually leave it out |
+
+Findings below 70 are not counted and are shown to the reader as "to confirm". Prefer checking
+over guessing: reading the callee usually turns a 50 into a 95 or into no finding at all.
+
 ## Output per file (semantic/batch-N.json)
 
 ```json
@@ -71,7 +85,8 @@ is almost never critical.
   "findings": [{"dimension": "…", "points": 3, "critical": false, "title": "≤ 80 chars",
                 "reason": "1–2 sentences: why it matters", "evidence": [{"path": "…", "line_start": 10, "line_end": 14,
                 "side": "new", "snippet": "the relevant line(s)"}], "affected_symbols": ["Class.method"],
-                "consequences": ["…"], "confidence": "verified|inferred", "limitations": []}],
+                "consequences": ["…"], "confidence": "verified|inferred", "certainty": 85,
+                "limitations": []}],
   "adjust": [{"rule_id": "deterministic rule id", "points": 1, "critical": false,
               "reason": "why the deterministic score is wrong"}]
 }

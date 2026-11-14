@@ -419,7 +419,21 @@ def cmd_merge(args):
             print(f"  - {p}", file=sys.stderr)
         sys.exit(1)
 
+    min_cert = int((load_config(repo_root()).get("scoring") or {}).get("min_certainty", 70))
+    to_confirm = []
+    kept = []
+    for x in findings:
+        try:
+            cert = int(x.get("certainty", 90 if x.get("confidence") == "verified" else 70))
+        except (TypeError, ValueError):
+            cert = 70
+        x["certainty"] = max(0, min(100, cert))
+        (to_confirm if x["certainty"] < min_cert else kept).append(x)
+    findings = kept
     order = {s: i for i, s in enumerate(SEVERITIES)}
+    to_confirm.sort(key=lambda x: (order.get(x["severity"], 9), x["path"]))
+    for i, x in enumerate(to_confirm, 1):
+        x["id"] = f"U-{i:03d}"
     findings.sort(key=lambda x: (order[x["severity"]], x["path"], x.get("line_start") or 0))
     for i, x in enumerate(findings, 1):
         x["id"] = f"R-{i:03d}"
@@ -432,6 +446,9 @@ def cmd_merge(args):
     limitations = list(a.get("limitations") or [])
     if problems:
         limitations.append(f"Review incomplete: {len(problems)} problem(s) in model output.")
+    if to_confirm:
+        limitations.append(f"{len(to_confirm)} finding(s) below certainty {min_cert} are listed under "
+                           f"'To confirm' and not counted.")
     if scope["mechanical_groups"]:
         limitations.append(f"{len(scope['mechanical_groups'])} mechanical group(s) reviewed through 2 sample files each.")
     if scope["sources"].get("discovered_from"):
@@ -442,7 +459,7 @@ def cmd_merge(args):
                         "mechanical_groups_sampled": len(scope["mechanical_groups"]), "excluded": scope["excluded"]},
               "summary": summary, "findings": findings,
               "files": [{"path": p, "role": roles.get(p), "findings": ids} for p, ids in sorted(by_file.items())],
-              "spec": spec, "limitations": limitations}
+              "spec": spec, "to_confirm": to_confirm, "limitations": limitations}
     write_json(rv / "review.json", review)
     (rv / "review.md").write_text(to_markdown(review), encoding="utf-8")
     print(f"{kind}-review: blocker {summary['blocker']}, major {summary['major']}, minor {summary['minor']}, "
@@ -524,6 +541,15 @@ def to_markdown(r):
                 lines.append(f"  - See: `{where}` {rel.get('note') or ''}".rstrip())
             if x.get("refs"):
                 lines.append(f"  - Refs: {', '.join('`' + ref + '`' for ref in x['refs'])}")
+        lines.append("")
+    if r.get("to_confirm"):
+        lines += [f"## To confirm ({len(r['to_confirm'])}) — low certainty, check before fixing", ""]
+        for x in r["to_confirm"]:
+            loc = x["path"] + (f":{x['line_start']}" if x.get("line_start") else "")
+            lines.append(f"- [ ] **{x['id']}** `{loc}` — {x['title']} _({x['severity']}, certainty "
+                         f"{x.get('certainty')})_")
+            if x.get("description"):
+                lines.append(f"  - Suspicion: {x['description']}")
         lines.append("")
     if r.get("limitations"):
         lines += ["## Limitations of this review", ""] + [f"- {l}" for l in r["limitations"]] + [""]
