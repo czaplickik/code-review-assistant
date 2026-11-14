@@ -21,11 +21,24 @@ Review modes: `build+tests+static` · `ai-review-only` · `ai+human-critical-pat
 Specification: [docs/specification.md](docs/specification.md) · data contract:
 [schemas/data-model.md](schemas/data-model.md).
 
-## Use
+## Install
 
-```bash
-claude --plugin-dir /path/to/code-review-assistant-plugin
+From the marketplace in this repository (Claude Code):
+
+```text
+/plugin marketplace add czaplickik/code-review-assistant-plugin
+/plugin install code-review-assistant@code-review-assistant
 ```
+
+or in one step (Claude Code 2.1.275+):
+
+```text
+/plugin install code-review-assistant --marketplace czaplickik/code-review-assistant-plugin
+```
+
+For local development: `claude --plugin-dir /path/to/code-review-assistant-plugin`.
+
+## Use
 
 Default boundary: uncommitted changes (staged + unstaged) and untracked files vs `HEAD`.
 `--base develop` reviews everything since the merge-base with `develop`.

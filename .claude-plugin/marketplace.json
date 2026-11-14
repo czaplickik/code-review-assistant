@@ -1,0 +1,19 @@
+{
+  "name": "code-review-assistant",
+  "owner": {
+    "name": "czaplickik"
+  },
+  "metadata": {
+    "description": "Triage and AI review of AI-generated code changes (Java/Spring, .NET)."
+  },
+  "plugins": [
+    {
+      "name": "code-review-assistant",
+      "source": "./",
+      "description": "Triage AI-generated changes before review: review-mode verdict, risk-ranked files, plan summaries, change explanations and AI, security and spec reviews.",
+      "version": "0.4.0",
+      "category": "code-review",
+      "keywords": ["code-review", "triage", "security", "superpowers", "java", "spring", "dotnet"]
+    }
+  ]
+}
