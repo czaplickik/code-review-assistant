@@ -11,8 +11,10 @@ allowed-tools: Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/*), Read, Edit, Glob, 
    stacks; do not paste the whole file).
 2. If `docs/code-review/rules.yaml` already exists, read it and ask whether to keep it
    (then only tune it, step 4) or regenerate it (`--force`).
-3. Ask with AskUserQuestion whether to add the report directory to `.gitignore`
-   (recommended). Then run `init_rules.py` with `--gitignore` if they agreed.
+3. Reports go to the plugin-wide knowledge-base folder (set with
+   `/code-review-assistant:configure`, default `~/code-review-kb/<project>/`); `report_dir`
+   stays commented out in rules.yaml. Only if the user sets `report_dir` to a path inside the repository, ask with
+   AskUserQuestion whether to add it to `.gitignore` and run `init_rules.py --gitignore`.
 4. Offer to tune, based on what you can see in the repo (look, do not guess):
    - `critical_modules` — e.g. payment, billing, security, auth packages/namespaces you find;
    - `sources.spec_dirs` / `plan_dirs` if specs and plans live elsewhere;

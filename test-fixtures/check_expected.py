@@ -30,8 +30,12 @@ def match(path, suffix):
 
 def newest_report(sandbox):
     base = sandbox / "docs" / "code-review" / "reports"
-    dirs = sorted(d for d in base.glob("*") if (d / "analysis.json").is_file()) if base.is_dir() else []
-    return dirs[-1] if dirs else None
+    if not base.is_dir():
+        return None
+    dirs = [p.parent for p in base.glob("*/runs/*/analysis.json")] + [p.parent for p in base.glob("*/analysis.json")]
+    dirs = [d for d in dirs if "verdict" in json.loads((d / "analysis.json").read_text(encoding="utf-8"))
+            and json.loads((d / "analysis.json").read_text(encoding="utf-8"))["verdict"]]
+    return max(dirs, key=lambda d: d.name) if dirs else None
 
 
 def check(sid, report_dir=None):

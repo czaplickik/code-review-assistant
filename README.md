@@ -14,6 +14,7 @@ list to paste into a fixing session.
 | Security review | `/code-review-assistant:security-review` | AuthZ/IDOR, authN, validation, injection, secrets, exposure, config, deps |
 | Spec compliance | `/code-review-assistant:spec-review` | Requirements matrix, plan decisions, worked examples, unrequested code |
 | Once per project | `/code-review-assistant:review-init` | `docs/code-review/rules.yaml` |
+| Once per machine | `/code-review-assistant:configure [folder]` | Knowledge-base folder for all projects |
 
 Review modes: `build+tests+static` · `ai-review-only` · `ai+human-critical-paths` · `human-only`.
 
@@ -28,7 +29,14 @@ claude --plugin-dir /path/to/code-review-assistant-plugin
 
 Default boundary: uncommitted changes (staged + unstaged) and untracked files vs `HEAD`.
 `--base develop` reviews everything since the merge-base with `develop`.
-Reports go to `docs/code-review/reports/<timestamp>-<id>/` (add it to `.gitignore`).
+Reports go to a knowledge base outside the repo, `~/code-review-kb/<project>/`, one folder per
+feature: `{DATE}-{JIRA_ID}-{FEATURE}/` with `index.md` (overview), the HTML reports, review fix
+lists and history. Open it in a browser or as an Obsidian vault.
+
+Set the folder once for all projects with `/code-review-assistant:configure` (stored in
+`~/.config/code-review-assistant/config.yaml`, e.g. `~/Obsidian/Work/Code Review/{project}`).
+Precedence: project `docs/code-review/rules.yaml` > `CODE_REVIEW_KB` env var > user config >
+default `~/code-review-kb/{project}`.
 
 Requirements: git, Python 3.9+ (standard library only).
 

@@ -71,19 +71,35 @@ def write_json(path, data):
     os.replace(tmp, path)
 
 
+def report_base(root, cfg=None):
+    """Knowledge-base folder for this repository: report_dir with `~` and `{project}` expanded;
+    relative paths are relative to the repository root."""
+    cfg = cfg or load_config(root)
+    raw = str(cfg.get("report_dir") or "~/code-review-kb/{project}").replace("{project}", Path(root).name)
+    p = Path(os.path.expanduser(raw))
+    return p if p.is_absolute() else Path(root) / p
+
+
 def resolve_report_dir(arg, root):
-    """Accepts a report dir path or 'latest'."""
+    """Accepts a run directory path or 'latest' (newest run of this repository)."""
     if arg and arg != "latest":
         p = Path(arg)
         return p if p.is_absolute() else (Path.cwd() / p).resolve()
-    cfg = load_config(root)
-    base = root / cfg["report_dir"]
+    base = report_base(root)
     if not base.is_dir():
         die(f"no reports in {base}")
-    dirs = sorted(d for d in base.iterdir() if (d / "analysis.json").is_file())
-    if not dirs:
-        die(f"no reports in {base}")
-    return dirs[-1]
+    runs = [p.parent for p in base.glob("*/runs/*/analysis.json")] + \
+           [p.parent for p in base.glob("*/analysis.json")]
+    mine = []
+    for d in runs:
+        try:
+            if read_json(d / "analysis.json").get("repo_root") == str(root):
+                mine.append(d)
+        except ValueError:
+            continue
+    if not mine:
+        die(f"no reports for {root} in {base}")
+    return max(mine, key=lambda d: d.name)
 
 
 # ---------------------------------------------------------------- glob
@@ -133,8 +149,23 @@ def deep_merge(base, over):
     return out
 
 
+def user_config_path():
+    """Plugin-wide user settings (all projects): $XDG_CONFIG_HOME or ~/.config."""
+    base = os.environ.get("XDG_CONFIG_HOME") or os.path.join(os.path.expanduser("~"), ".config")
+    return Path(base) / "code-review-assistant" / "config.yaml"
+
+
 def load_config(root, overrides=None):
+    """Plugin defaults → user config (~/.config/code-review-assistant/config.yaml)
+    → CODE_REVIEW_KB environment variable (report_dir) → project docs/code-review/rules.yaml."""
     cfg = _yaml.load(RULESETS_DIR / "_base" / "defaults.yaml")
+    user = user_config_path()
+    cfg["_user_config"] = None
+    if user.is_file():
+        cfg = deep_merge(cfg, _yaml.load(user) or {})
+        cfg["_user_config"] = str(user)
+    if os.environ.get("CODE_REVIEW_KB"):
+        cfg["report_dir"] = os.environ["CODE_REVIEW_KB"]
     proj = Path(root) / PROJECT_CONFIG
     if proj.is_file():
         cfg = deep_merge(cfg, _yaml.load(proj))

@@ -23,7 +23,7 @@ Before analysing, ask with AskUserQuestion (one question):
 ## 2. Locate the change
 
 - Resolve the target to file + line range + symbol. Use the latest impact report if one exists
-  (`docs/code-review/reports/*/analysis.json`, newest directory): its entry for the file gives
+  (`python3 ${CLAUDE_PLUGIN_ROOT}/scripts/show_diff.py latest --file <path>` finds it): its entry for the file gives
   role, findings, interactions, flow and plan refs — start from those instead of re-analysing.
 - Get the diff of the target: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/show_diff.py latest --file <path> --full`
   when a report exists, otherwise `git diff HEAD -- <path>` (untracked file: read it, everything is new).
@@ -56,14 +56,16 @@ Impact         – consequences, blast radius (callers, contracts, data)
 Worth checking – 1–3 concrete questions for the reviewer
 ```
 
-If HTML was requested, also write `explanation-<slug>.json` next to the latest report (or in a
-new `docs/code-review/reports/<YYYYMMDD-HHMMSS>-explain/` directory) following the
+If HTML was requested, also write `explanation-<slug>.json` into the latest run directory of
+the feature (`python3 ${CLAUDE_PLUGIN_ROOT}/scripts/show_diff.py latest --list-batches` fails
+when there is none — then create one with `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/feature_dir.py --kind explain`),
+following the
 `explanation-<slug>.json` section of `${CLAUDE_PLUGIN_ROOT}/schemas/data-model.md`, then:
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/render_report.py explanation <json path>
 ```
 
-and give the HTML path. Include `sequence_before` only when the old flow differed.
+and give the published path in the feature folder (printed after `published:`). Include `sequence_before` only when the old flow differed.
 
 Do not propose fixes unless the user asks.

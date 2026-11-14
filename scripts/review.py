@@ -87,6 +87,10 @@ def find_or_collect(root, args):
         extra += ["--spec", s]
     for p in args.plan:
         extra += ["--plan", p]
+    if args.title:
+        extra += ["--title", args.title]
+    if args.jira:
+        extra += ["--jira", args.jira]
     out = run("collect_changes.py", *extra, cwd=root)
     new_dir = Path(out.splitlines()[0].strip())
     a = read_json(new_dir / "analysis.json")
@@ -576,6 +580,8 @@ def main():
     p.add_argument("--base")
     p.add_argument("--spec", action="append", default=[])
     p.add_argument("--plan", action="append", default=[])
+    p.add_argument("--title")
+    p.add_argument("--jira")
     s = sub.add_parser("show")
     s.add_argument("review_dir")
     s.add_argument("--batch", type=int, required=True)

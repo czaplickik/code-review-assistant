@@ -2,7 +2,9 @@
 
 Contract between scripts, the model and the HTML renderers. All files are UTF-8 JSON.
 
-Report directory (one per run): `docs/code-review/reports/<YYYYMMDD-HHMMSS>-<short-id>/`
+Run directory: `<report_dir>/<DATE>-<JIRA>-<feature>/runs/<YYYYMMDD-HHMMSS>-<short-id>/`
+(`report_dir` default `~/code-review-kb/{project}`). The feature folder holds `feature.json`
+(identity + registry of published outputs), `index.md`, the published pages and `history/`.
 
 | File | Written by | Read by |
 |---|---|---|

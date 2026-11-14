@@ -16,7 +16,8 @@ import hashlib
 from pathlib import Path
 
 from _common import (EMPTY_TREE, die, git, git_ok, glob_match, load_config, parse_diff,
-                     repo_root, write_json)
+                     report_base, repo_root, write_json)
+from _feature import feature_info, find_or_create
 
 LANG_BY_EXT = {
     ".java": "java", ".kt": "kotlin", ".kts": "kotlin", ".groovy": "groovy",
@@ -82,11 +83,17 @@ def main():
     ap.add_argument("--base", help="base branch (merge-base with HEAD)")
     ap.add_argument("--spec", action="append", default=[], help="explicit spec document")
     ap.add_argument("--plan", action="append", default=[], help="explicit plan document")
+    ap.add_argument("--title", help="feature title (default: branch, spec title or changed code)")
+    ap.add_argument("--jira", help="ticket id (default: from the branch name)")
     args = ap.parse_args()
 
     root = repo_root()
     cfg = load_config(root)
-    report_root = cfg["report_dir"].strip("/")
+    base_dir = report_base(root, cfg)
+    try:
+        report_root = str(base_dir.resolve().relative_to(root.resolve()))
+    except ValueError:
+        report_root = None  # knowledge base outside the repository
 
     has_head = git_ok("rev-parse", "--verify", "-q", "HEAD", cwd=root)
     base_ref = args.base or cfg.get("base_branch")
@@ -102,7 +109,7 @@ def main():
     branch = git("rev-parse", "--abbrev-ref", "HEAD", cwd=root).strip() if has_head else None
 
     def ignored(path):
-        return path.startswith(report_root + "/")
+        return bool(report_root) and path.startswith(report_root.rstrip("/") + "/")
 
     entries = []
     toks = split_z(git("diff", base_commit, "-M", "--name-status", "-z", cwd=root))
@@ -130,13 +137,7 @@ def main():
     if not entries:
         die("no changes found in the boundary", code=3)
 
-    stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
-    short = hashlib.sha1((base_commit + stamp).encode()).hexdigest()[:6]
-    report_dir = root / report_root / f"{stamp}-{short}"
-    (report_dir / "diffs").mkdir(parents=True, exist_ok=False)
-    (report_dir / "semantic").mkdir()
-
-    files, tot_add, tot_del = [], 0, 0
+    files, texts, tot_add, tot_del = [], [], 0, 0
     for n, e in enumerate(entries, 1):
         if e.get("move_diff") is not None:
             text = e.pop("move_diff")
@@ -148,7 +149,7 @@ def main():
             text = git("diff", base_commit, "-M", "--no-color", "-U3", "--", *paths, cwd=root)
         binary = "\nBinary files " in text or text.startswith("Binary files ")
         diff_rel = f"diffs/{n:04d}.diff"
-        (report_dir / diff_rel).write_text(text, encoding="utf-8")
+        texts.append((diff_rel, text))
         hunks = parse_diff(text)
         add = sum(1 for h in hunks for l in h["lines"] if l[0] == "+")
         dele = sum(1 for h in hunks for l in h["lines"] if l[0] == "-")
@@ -161,8 +162,7 @@ def main():
             "diff_file": diff_rel,
         })
 
-    change_hash = hashlib.sha1("".join(
-        f["path"] + (report_dir / f["diff_file"]).read_text(encoding="utf-8") for f in files).encode()).hexdigest()
+    change_hash = hashlib.sha1("".join(f["path"] + t for f, (_, t) in zip(files, texts)).encode()).hexdigest()
     changed = {f["path"] for f in files if f["status"] != "deleted"}
     src = cfg.get("sources") or {}
 
@@ -196,11 +196,24 @@ def main():
                          - set(spec) - set(plan))
     missing = [k for k, v in (("spec", spec), ("plan", plan), ("conventions", conventions)) if not v]
 
+    info = feature_info(root, branch, title=args.title, jira=args.jira, spec_paths=spec,
+                        changed=[f["path"] for f in files if f["status"] != "deleted" and not f["path"].endswith(".md")],
+                        new={f["path"] for f in files if f["status"] == "added"})
+    fdir = find_or_create(base_dir, info, root)
+    stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+    short = hashlib.sha1((base_commit + stamp).encode()).hexdigest()[:6]
+    report_dir = fdir / "runs" / f"{stamp}-{short}"
+    (report_dir / "diffs").mkdir(parents=True, exist_ok=False)
+    (report_dir / "semantic").mkdir()
+    for rel, text in texts:
+        (report_dir / rel).write_text(text, encoding="utf-8")
+
     analysis = {
         "schema_version": 1,
         "generated_at": dt.datetime.now().isoformat(timespec="seconds"),
         "repo_root": str(root),
-        "report_dir": str(report_dir.relative_to(root)),
+        "report_dir": str(report_dir),
+        "feature": {**info, "folder": str(fdir)},
         "change": {
             "boundary": boundary, "base_ref": base_ref, "base_commit": base_commit[:12],
             "branch": branch, "change_hash": change_hash,
@@ -217,6 +230,8 @@ def main():
     }
     write_json(report_dir / "analysis.json", analysis)
     print(report_dir)
+    print(f"feature: {fdir.name} (title from {info['title_source']}"
+          f"{', no ticket id' if not info['jira'] else ''})")
     print(f"{len(files)} files (+{tot_add} / -{tot_del}), untracked {analysis['change']['stats']['untracked']}, "
           f"boundary {boundary} vs {base_ref}; spec {len(spec)}, plan {len(plan)}, conventions {len(conventions)}")
 

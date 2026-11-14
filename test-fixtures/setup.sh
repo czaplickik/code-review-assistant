@@ -46,6 +46,12 @@ setup_one() {
 
   [ -f "$sdir/prepare.py" ] && python3 -I "$sdir/prepare.py" "$target"
 
+  # keep reports inside the sandbox (default knowledge base is ~/code-review-kb)
+  if [ ! -f "$target/docs/code-review/rules.yaml" ]; then
+    mkdir -p "$target/docs/code-review"
+    printf 'report_dir: docs/code-review/reports\n' > "$target/docs/code-review/rules.yaml"
+  fi
+
   (
     cd "$target"
     export GIT_AUTHOR_NAME="fixture" GIT_AUTHOR_EMAIL="fixture@example.invalid"

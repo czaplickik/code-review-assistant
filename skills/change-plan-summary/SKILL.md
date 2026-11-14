@@ -78,19 +78,27 @@ a missing section is simply absent; short sentences, numbers kept exact.
 
 ## 4. Write and render
 
-Create a report directory `docs/code-review/reports/<YYYYMMDD-HHMMSS>-plan/` (or under
-`report_dir` from rules.yaml) and write `plan-summary.json` there, following the
-`plan-summary.json` section of `${CLAUDE_PLUGIN_ROOT}/schemas/data-model.md` exactly. Then:
+Get the run directory in the feature folder (title and ticket id come from the branch,
+otherwise from the spec title; pass `--title` / `--jira` if you know better):
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/feature_dir.py --spec <spec path> --kind plan
+```
+
+Write `plan-summary.json` into the printed directory, following the `plan-summary.json`
+section of `${CLAUDE_PLUGIN_ROOT}/schemas/data-model.md` exactly. Then:
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/render_report.py plan <dir>/plan-summary.json
 ```
 
+It publishes `plan-summary.html` into the feature folder and refreshes its `index.md`.
+
 ## 5. Answer in the terminal
 
 In the user's language, at most ~12 lines: the goal in one sentence, 3–5 key points the
 developer must know (rules, contracts, decisions), the contradictions / gaps / open questions
-as a short list, `words_in → words_out`, and the HTML path. No judgement of the plan.
+as a short list, `words_in → words_out`, and the paths of `plan-summary.html` and `index.md` in the feature folder. No judgement of the plan.
 
 `change-impact-score` later reuses the newest `plan-summary.json` built from the same plan
 documents (its `expected_files`) for plan-vs-implementation drift; nothing else is needed.

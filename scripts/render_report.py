@@ -281,6 +281,9 @@ def main(argv=None):
     p_rev = sub.add_parser("review", help="review page from review.json (or its directory)")
     p_rev.add_argument("json_path")
     p_rev.add_argument("--out")
+    for sp in (p_imp, p_plan, p_exp, p_rev):
+        sp.add_argument("--no-publish", action="store_true",
+                        help="do not copy the page into the feature folder / index.md")
     args = parser.parse_args(argv)
     try:
         if args.kind == "impact":
@@ -295,7 +298,35 @@ def main(argv=None):
         print("render_report: error: %s" % exc, file=sys.stderr)
         return 1
     print(out)
+    if not args.no_publish:
+        published = publish_output(args.kind, out)
+        if published:
+            print("published: %s" % published)
+            print("index: %s" % os.path.join(os.path.dirname(published), "index.md"))
     return 0
+
+
+def publish_output(kind, out):
+    """Copy the rendered page into its feature folder (knowledge base) and refresh index.md."""
+    try:
+        from _feature import publish
+    except ImportError:
+        return None
+    folder = os.path.dirname(os.path.abspath(out))
+    if kind == "impact":
+        return publish("impact", out, json_path=os.path.join(folder, "analysis.json"))
+    if kind == "plan":
+        return publish("plan", out, json_path=os.path.splitext(out)[0] + ".json")
+    if kind == "review":
+        jp = os.path.join(folder, "review.json")
+        try:
+            with open(jp, encoding="utf-8") as fh:
+                rkind = json.load(fh).get("kind", "ai")
+        except (OSError, ValueError):
+            rkind = "ai"
+        md = os.path.join(folder, "review.md")
+        return publish("review-" + rkind, out, json_path=jp, md_path=md if os.path.isfile(md) else None)
+    return publish("explanation", out, json_path=os.path.splitext(out)[0] + ".json", name=os.path.basename(out))
 
 
 if __name__ == "__main__":

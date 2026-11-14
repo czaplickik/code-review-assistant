@@ -2,7 +2,7 @@
 name: ai-review
 disable-model-invocation: true
 description: General AI code review of the current change (uncommitted + untracked, or vs a base branch) — checks project practices and rules, consistency with the existing codebase, reinvented helpers, dead code, unrequested or over-engineered code, typical AI artifacts (non-existent APIs, stubs, tests bent to the code), tests, error handling, resources and performance. Produces an HTML report and a review.md fix list to hand to a fixing session. Reports only, never edits code. Use when the user asks for an AI review / code review of a change, or invokes /code-review-assistant:ai-review.
-argument-hint: "[--base <branch>]"
+argument-hint: "[--base <branch>] [--title <feature>] [--jira <ID>]"
 allowed-tools: Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/*), Read, Grep, Glob, Write, Agent
 ---
 
@@ -12,6 +12,13 @@ Review the **whole change** like a senior reviewer of this codebase. Report only
 code. Arguments: `$ARGUMENTS`
 
 ## 1. Prepare
+
+**Feature folder.** Results go to the knowledge base (`report_dir`, default
+`~/code-review-kb/<project>/`), one folder per feature named `{DATE}-{JIRA_ID}-{FEATURE}`.
+The ticket id and title come from the branch name; on a generic branch (`develop`, `main`)
+from the spec title. If the branch has no ticket/feature name **and** no spec is part of the
+change, run `git status --short` first, pick a 2–4 word title of what the change does and
+pass `--title "<title>"` (and `--jira <ID>` if the user mentioned one).
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/review.py prepare ai $ARGUMENTS
@@ -59,7 +66,7 @@ locations in `related` — edit the batch files (a dropped finding's candidate g
 In the user's language, short:
 1. Counts: blocker / major / minor / info.
 2. Up to 7 most important findings: `[severity] path:line — title`.
-3. Paths of `review.html` and `review.md` — say that `review.md` is the checklist to paste
+3. The published `review-<kind>.html` and `review-<kind>.md` in the feature folder and its `index.md` (printed by `render_report.py`) — say that `review.md` is the checklist to paste
    into a fixing session.
 4. Limitations (sampled mechanical groups, missing conventions docs).
 

@@ -2,7 +2,7 @@
 name: spec-review
 disable-model-invocation: true
 description: Critical review of an implementation against its spec and plan (e.g. Superpowers docs/superpowers/specs and plans, also when they were committed earlier) — requirements matrix with status and tests per requirement, plan decisions and assumptions followed or deviated, business rules verified with worked examples, unrequested behaviour and contract mismatches. Produces an HTML report and a review.md fix list. Reports only. Use when the user asks whether the implementation matches the spec/plan/requirements, or invokes /code-review-assistant:spec-review.
-argument-hint: "[--base <branch>] [--spec <path>] [--plan <path>]"
+argument-hint: "[--base <branch>] [--spec <path>] [--plan <path>] [--title <feature>] [--jira <ID>]"
 allowed-tools: Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/*), Read, Grep, Glob, Write, Agent
 ---
 
@@ -12,6 +12,13 @@ Check critically that the **whole change** does what the spec requires and follo
 decisions — not more, not less, not differently. Report only. Arguments: `$ARGUMENTS`
 
 ## 1. Prepare
+
+**Feature folder.** Results go to the knowledge base (`report_dir`, default
+`~/code-review-kb/<project>/`), one folder per feature named `{DATE}-{JIRA_ID}-{FEATURE}`.
+The ticket id and title come from the branch name; on a generic branch (`develop`, `main`)
+from the spec title. If the branch has no ticket/feature name **and** no spec is part of the
+change, run `git status --short` first, pick a 2–4 word title of what the change does and
+pass `--title "<title>"` (and `--jira <ID>` if the user mentioned one).
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/review.py prepare spec $ARGUMENTS
@@ -24,8 +31,9 @@ and re-run with `--spec` / `--plan`.
 
 ## 2. Build the requirement list (you)
 
-Read the spec and the plan fully (or start from a `plan-summary.json` of the same documents
-under `docs/code-review/reports/*/`, then verify against the documents). List every requirement
+Read the spec and the plan fully (or start from the `plan-summary.json` of the same feature —
+the feature folder's `feature.json` lists it under `outputs.plan.json` — then verify against
+the documents). List every requirement
 with code impact (`id`, short text, `ref` as `path#heading-slug`), every technical decision or
 assumption, and every business rule with a formula or limit. Read
 `${CLAUDE_PLUGIN_ROOT}/rulesets/_base/review-spec.md`.
@@ -71,6 +79,6 @@ one with `related` locations, then merge again.
 
 Short, in the user's language: requirement coverage (implemented / partial / missing /
 contradicted / unclear), failed worked examples (`rule: expected X, code gives Y`), deviated
-decisions, top findings, and the paths of `review.html` and `review.md` (fix list for a fixing
+decisions, top findings, and the the published `review-<kind>.html` and `review-<kind>.md` in the feature folder and its `index.md` (printed by `render_report.py`) (fix list for a fixing
 session). Never invent a requirement or an intention; ambiguity in the spec is an `info`
 finding quoting the spec.

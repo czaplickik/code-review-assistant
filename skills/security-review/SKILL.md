@@ -2,7 +2,7 @@
 name: security-review
 disable-model-invocation: true
 description: Security review of the current change (uncommitted + untracked, or vs a base branch), stack-aware for Java/Spring and .NET — entry-point inventory, authorization and ownership (IDOR), authentication and tokens, input validation, injection, secrets, crypto, data exposure, SSRF, deserialization, security config, dependencies, sensitive logging, and the security requirements of the spec. Produces an HTML report and a review.md fix list. Reports only. Use when the user asks for a security review of a change, or invokes /code-review-assistant:security-review.
-argument-hint: "[--base <branch>]"
+argument-hint: "[--base <branch>] [--title <feature>] [--jira <ID>]"
 allowed-tools: Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/*), Read, Grep, Glob, Write, Agent
 ---
 
@@ -12,6 +12,13 @@ Find exploitable weaknesses introduced or exposed by the **whole change**. Repor
 edit code. Arguments: `$ARGUMENTS`
 
 ## 1. Prepare
+
+**Feature folder.** Results go to the knowledge base (`report_dir`, default
+`~/code-review-kb/<project>/`), one folder per feature named `{DATE}-{JIRA_ID}-{FEATURE}`.
+The ticket id and title come from the branch name; on a generic branch (`develop`, `main`)
+from the spec title. If the branch has no ticket/feature name **and** no spec is part of the
+change, run `git status --short` first, pick a 2–4 word title of what the change does and
+pass `--title "<title>"` (and `--jira <ID>` if the user mentioned one).
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/review.py prepare security $ARGUMENTS

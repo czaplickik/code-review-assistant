@@ -43,6 +43,7 @@ It assesses criticality and directs attention. Bug hunting is delegated to exist
 | 3 | A change is unclear | `change-explanation` | Terminal answer, optional HTML with diagrams |
 | 4 | AI review of the change | `ai-review`, `security-review`, `spec-review` | HTML report + `review.md` fix list |
 | — | Once per project | `review-init` | `docs/code-review/rules.yaml` |
+| — | Once per machine | `configure` | knowledge-base folder for all projects |
 
 Stages 1 and 2 are one skill producing one report: the verdict is the first thing on the page,
 the ranking follows.
@@ -118,8 +119,8 @@ reason they were not analysed deeply.
 
 ## 3.6. Analysis Model (JSON)
 
-All skills read and write one model, stored per change in
-`docs/code-review/reports/<timestamp>-<short-id>/analysis.json`. A JSON Schema ships with the
+All skills read and write one model, stored per run in
+`<feature folder>/runs/<timestamp>-<short-id>/analysis.json` (see 10.1). A JSON Schema ships with the
 plugin (`schemas/analysis.schema.json`). Core entities:
 
 - **change** — boundary, base, stats, rulesets used, sources found/missing.
@@ -403,11 +404,28 @@ newest documents in the spec/plan directories.
 
 # 10. Reports
 
-## 10.1. Location
+## 10.1. Location — knowledge base
 
-`docs/code-review/reports/<timestamp>-<short-id>/` containing `analysis.json` and the HTML
-report(s). The plugin suggests adding `docs/code-review/reports/` to `.gitignore`;
-`docs/code-review/rules.yaml` is meant to be committed.
+Reports form a knowledge base outside the repository: `report_dir`, default
+`~/code-review-kb/{project}/` (`~` and `{project}` expanded; a relative path is relative to the
+repository root). The folder is a plugin-wide setting chosen once with the `configure` skill
+(`~/.config/code-review-assistant/config.yaml`). Precedence: project `rules.yaml` >
+`CODE_REVIEW_KB` environment variable > user config > plugin default. One folder per feature, named `{DATE}-{JIRA_ID}-{FEATURE}`:
+
+- `JIRA_ID` from the branch name (or the first lines of the spec); omitted when unknown.
+- `FEATURE` from the branch name; on generic branches (`develop`, `main`) from the spec title;
+  otherwise a short title the skill derives from the changed code (`--title`), with a
+  deterministic fallback from the changed file names.
+- `DATE` is the day the folder was created; later runs for the same ticket (or the same
+  non-generic branch / title) reuse the folder.
+
+Contents: `index.md` (overview note with frontmatter — ticket, feature, branch, review mode,
+blocker counts — goal, plan contradictions, review mode, top files, review table, blockers,
+links; rebuilt on every publish), the latest pages (`plan-summary.html`, `impact-report.html`,
+`review-<kind>.html` + `review-<kind>.md`, `explanation-*.html`), `history/` with previous
+versions and `runs/` with working data. The folder can be opened in a browser, Finder or as an
+Obsidian vault (markdown notes, frontmatter for Dataview/Bases; HTML via a viewer plugin or the
+browser). `docs/code-review/rules.yaml` stays in the repository and is meant to be committed.
 
 ## 10.2. Technical Requirements
 

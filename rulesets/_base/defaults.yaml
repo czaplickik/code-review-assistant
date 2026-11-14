@@ -9,8 +9,11 @@ version: 1
 # A branch name (e.g. develop) = merge-base(branch, HEAD) -> working tree.
 base_branch: null
 
-# Where reports are written (relative to the repo root). Keep it out of git.
-report_dir: docs/code-review/reports
+# Knowledge base for reports. `~` and `{project}` (repository folder name) are expanded;
+# a relative path is relative to the repository root. Each feature gets its own folder
+# {DATE}-{JIRA_ID}-{FEATURE} with an index.md, the HTML reports, review fix lists and history.
+# Open the folder in a browser, Finder or as an Obsidian vault.
+report_dir: ~/code-review-kb/{project}
 
 # Limit stack rulesets (ids from the plugin's rulesets/ directory). null = auto by file type.
 rulesets: null
