@@ -55,29 +55,48 @@ Requirements: git, Python 3.9+ (standard library only).
 
 ## How it works
 
-1. `scripts/collect_changes.py` — change boundary, diffs, spec/plan discovery.
-2. `scripts/triage.py` — rulesets per file, exclusions, mechanical-change detection (repeated
-   patterns across files), deterministic rules, fan-in, linked tests, tiers and batches.
-3. Model (subagents per batch) — role, interactions, semantic findings, what to verify.
-4. `scripts/aggregate.py` — merge, blast-radius and missing-test signals, additive scores
-   (0–5 points per finding, critical flag pins a file to the top), review-mode policy, plan drift.
-5. `scripts/render_report.py` — self-contained HTML.
+Deterministic scripts do the repository work; the model only does the semantic part.
+
+**Impact score** (`change-impact-score`)
+1. `collect_changes.py` — change boundary (incl. untracked files, stacked-branch warning),
+   diffs, spec/plan matched to the change, feature folder.
+2. `triage.py` — rulesets per file, exclusions, mechanical changes (repeated patterns, renames,
+   deleted modules with a dangling-reference check), deterministic rules, fan-in, linked tests,
+   tiers and batches (with the subagent model per tier).
+3. Subagents per batch — role, interactions, semantic findings, what to verify.
+4. `aggregate.py` — merge, blast-radius and missing-test signals, scores (0–5 points per
+   finding, summed), ranking (critical first, then severity, then score), review-mode policy,
+   the human reading list with questions, `ai-review-focus.md`, plan drift.
+5. `render_report.py` — self-contained HTML, published into the feature folder with
+   `index.md` refreshed and the previous version moved to `history/`.
+
+**Reviews** (`ai-review`, `security-review`, `spec-review`)
+`review.py prepare` (scope, deterministic candidates, batches) → subagents per batch →
+`review.py merge` (validation, `review.json`, `review.md` fix list; `review.py combine` folds
+duplicates) → `render_report.py review`.
+
+**Plan summary / explanation** — the model writes JSON (`schemas/data-model.md`),
+`render_report.py` renders and publishes it.
 
 ## Rulesets
 
 `rulesets/_base` (all files), `rulesets/java-spring`, `rulesets/dotnet`. Each has
 `detect.yaml` (file types, tests, migrations, symbols, assertions), `signals.yaml`
-(deterministic rules), `anchors.md` (rubric for the model) and `conventions.md` (defaults when
-a project documents none). Add a language by adding a directory.
+(deterministic rules), `anchors.md` (rubric for the model), `conventions.md` (defaults when
+a project documents none) and `review-*.md` checklists for the reviews. Add a language by
+adding a directory.
 
 Project overrides in `docs/code-review/rules.yaml`: thresholds of the review modes, rule
-points (`rule_overrides`), own rules (`extra_rules`), `critical_modules`, exclusions.
+points (`rule_overrides`), own rules (`extra_rules`), `critical_modules`, exclusions, tiers and
+`subagent_models` (default: session model for deep batches, `sonnet` for light ones).
+Plugin-wide settings (all projects) go to `~/.config/code-review-assistant/config.yaml`.
 
 ## Testing
 
 ```bash
 cd test-fixtures && ./setup.sh --all --force
 cd sandbox/java-03-order-refunds && claude --plugin-dir ../../..
+# in the session: /code-review-assistant:change-impact-score, then:
 python3 ../../check_expected.py java-03-order-refunds
 ```
 

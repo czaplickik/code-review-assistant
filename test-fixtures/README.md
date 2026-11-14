@@ -1,7 +1,7 @@
 # Test fixtures
 
-Scenario repos with planted changes and ground truth (`EXPECTED.md`) for validating the plugin
-(spec section 13).
+Scenario repos with planted changes and ground truth for validating the plugin
+(spec section 13): `EXPECTED.md` for people, `expected.json` for `check_expected.py`.
 
 ## Usage
 
@@ -19,7 +19,14 @@ cd sandbox/java-03-order-refunds
 claude --plugin-dir ../../..
 ```
 
-Then compare the report with `scenarios/<id>/EXPECTED.md`.
+Each sandbox commits a `docs/code-review/rules.yaml` with `report_dir: docs/code-review/reports`,
+so reports stay inside the sandbox (`docs/code-review/reports/<feature>/`) instead of the
+knowledge base in your home folder. After `/code-review-assistant:change-impact-score`:
+
+```bash
+python3 ../../check_expected.py java-03-order-refunds   # one scenario (newest report)
+python3 ../../check_expected.py --all                   # every sandbox that has a report
+```
 
 ## Layout
 
@@ -34,13 +41,16 @@ scenarios/<id>/
   generate.py               optional: bulk edits after the base commit
   staged.txt                optional: paths to `git add` (partial staging)
   EXPECTED.md               ground truth: mode, top files, must-detect signals, traps
+  expected.json             the same, machine-readable (format in check_expected.py)
+check_expected.py           compares the newest analysis.json with expected.json
 ```
 
 ## Pass criteria
 
-- review mode equals the expected one,
-- files marked CRITICAL are in the top 5,
-- every must-detect signal is reported,
-- no trap is in the top 10.
+- review mode equals the expected one (or an allowed alternative),
+- the files in `top.files` rank within `top.n` (usually 5),
+- every must-detect signal is reported with at least `min_points` in its dimension,
+- no trap ranks within `traps.n` (10, or 3 for scenarios with few files),
+- for scenarios with a plan: the expected plan drift is reported.
 
 Add a scenario by creating a new `scenarios/<id>/` directory; no script changes needed.

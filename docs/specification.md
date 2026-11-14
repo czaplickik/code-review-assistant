@@ -76,11 +76,14 @@ Missing optional sources reduce capability, never block. Every report lists what
 
 ## 3.3. Spec and Plan Discovery
 
-Spec and plan documents are discovered **from the change itself**: files in the change boundary
-located under the configured spec/plan directories
-(default `docs/superpowers/specs/` and `docs/superpowers/plans/`).
+Spec and plan documents live under the configured spec/plan directories (default
+`docs/superpowers/specs/` and `docs/superpowers/plans/`).
 
-- Several matches → all are used; the report lists which.
+- Documents that are part of the change are used directly (several → all).
+- Otherwise (usually committed before implementation) the plugin picks the document that
+  matches the change: ticket id in the name or head, branch words, and above all file paths it
+  mentions that exist in this repository. A document whose paths do not exist here (e.g. the
+  plan of another repository) is not used. The report says which document was used and why.
 - No match → the analysis runs without them and states so.
 - The user can pass paths explicitly, which overrides discovery.
 - Stage 0 runs before implementation, so its inputs are typically untracked working-tree files.
@@ -120,8 +123,8 @@ reason they were not analysed deeply.
 ## 3.6. Analysis Model (JSON)
 
 All skills read and write one model, stored per run in
-`<feature folder>/runs/<timestamp>-<short-id>/analysis.json` (see 10.1). A JSON Schema ships with the
-plugin (`schemas/analysis.schema.json`). Core entities:
+`<feature folder>/runs/<timestamp>-<short-id>/analysis.json` (see 10.1). The contract is documented
+in `schemas/data-model.md` and validated by the scripts that read model output. Core entities:
 
 - **change** — boundary, base, stats, rulesets used, sources found/missing.
 - **file** — path, change type, language, ruleset, role summary ("what this file is for"),
@@ -415,8 +418,8 @@ removed security lines, sensitive logging, plan drift) and batches. Subagents re
 against the checklists in `rulesets/*/review-<kind>.md` and must confirm or dismiss every
 candidate. `review.py merge` validates and writes `review.json` and `review.md`.
 Mechanical groups are reviewed through 2 sample files each. Severity: blocker / major / minor /
-info. Spec and plan are found in the change or — when committed before implementation — as the
-newest documents in the spec/plan directories.
+info. Spec and plan are found as described in 3.3 (in the change, or the committed documents
+matched to it). `review.py combine` folds duplicate findings reported by different batches.
 
 # 10. Reports
 
@@ -446,8 +449,8 @@ browser). `docs/code-review/rules.yaml` stays in the repository and is meant to 
 ## 10.2. Technical Requirements
 
 - One self-contained HTML file per report, works offline, no backend.
-- Inline CSS and JS. Third-party JS libraries (diagrams, graphs) are allowed only **vendored
-  and inlined** in the file — no CDN.
+- Inline CSS and JS, no third-party libraries: diagrams (interaction, component, sequence,
+  treemap) are hand-written SVG renderers in `templates/shared/components.js`. No CDN.
 - Data embedded as JSON and rendered client-side; must stay responsive with 200+ files.
 - Shared design system across reports.
 
@@ -463,33 +466,31 @@ browser). `docs/code-review/rules.yaml` stays in the repository and is meant to 
 # 11. Architecture
 
 ```text
-code-review-assistant/
-├── .claude-plugin/plugin.json
+code-review-assistant-plugin/            repository = marketplace + plugin root
+├── .claude-plugin/
+│   ├── plugin.json
+│   └── marketplace.json
 ├── skills/
-│   ├── change-impact-score/SKILL.md
-│   ├── change-explanation/SKILL.md
-│   ├── change-plan-summary/SKILL.md
-│   └── review-init/SKILL.md
-├── rulesets/              # see section 5
-├── schemas/
-│   └── analysis.schema.json
+│   ├── change-plan-summary/   change-impact-score/   change-explanation/
+│   ├── ai-review/   security-review/   spec-review/
+│   └── review-init/   configure/
+├── rulesets/              # _base, java-spring, dotnet (section 5) + review checklists
+├── schemas/data-model.md  # JSON contract between scripts, model and renderers
 ├── scripts/
-│   ├── collect_changes.py     # boundary, stats, hunks, untracked
-│   ├── triage.py              # mechanical detection, deterministic rules
-│   ├── references.py          # fan-in per ruleset
-│   ├── aggregate.py           # score, verdict policy, flows, plan drift
-│   └── render_report.py       # analysis.json → HTML
-├── templates/
-│   ├── impact-report.html
-│   ├── plan-summary.html
-│   ├── explanation.html
-│   └── shared/            # CSS, JS, vendored libraries
-├── test-fixtures/         # see section 13
+│   ├── _common.py  _yaml.py  _feature.py     # config, git, rulesets, YAML, feature folders
+│   ├── collect_changes.py     # boundary, diffs, spec/plan matching, stacked-branch check
+│   ├── triage.py              # rulesets, mechanical/deleted modules, rules, fan-in, tiers, batches
+│   ├── show_diff.py           # model input per batch / file, roles view
+│   ├── aggregate.py           # merge, scoring, ranking, verdict, human list, plan drift
+│   ├── review.py              # reviews: prepare / show / merge / combine
+│   ├── render_report.py       # JSON → HTML, publish into the feature folder, index.md
+│   ├── feature_dir.py  configure.py  init_rules.py
+├── templates/             # impact-report, plan-summary, explanation, review + shared CSS/JS
+├── test-fixtures/         # section 13
 └── README.md
 ```
 
-Scripts: Python 3 standard library only, no install step. Logical structure, not a prescription —
-prefer the simplest reliable approach Claude Code supports.
+Scripts: Python 3 standard library only, no install step.
 
 # 12. Non-Functional Requirements
 
@@ -526,13 +527,15 @@ is present and no trap is in the top 10. Fixtures are extended with real histori
 
 # 14. Acceptance Criteria
 
-1. All four skills are available in Claude Code.
+1. All eight skills are available in Claude Code, invoked by slash command only, and the
+   repository installs as a Claude Code marketplace.
 2. The change boundary includes untracked files; an optional base branch works.
 3. The impact report opens with a review mode verdict and the findings that decided it.
 4. Every file in the boundary appears in the report, with findings or with the reason it was
    excluded/assessed mechanically.
 5. Every finding has points, dimension, evidence and confidence.
-6. Files are ranked critical-first, then by additive score; flow view and dimension filters work.
+6. Files are ranked critical-first, then by severity (with reach bonus), then by additive score;
+   flow view and dimension filters work.
 7. Expanded file rows show role, interaction diagram, reasons and what to verify.
 8. Weakened tests and edited applied migrations are always detected.
 9. Java/Spring and .NET rulesets work, including in one mixed repository.
@@ -542,6 +545,12 @@ is present and no trap is in the top 10. Fixtures are extended with real histori
 12. The explanation skill asks for the output form and labels reason types.
 13. All fixture scenarios pass (section 13), including the 200+ file scenario.
 14. Reports are self-contained, offline, and responsive with 200+ files.
+15. In modes that need a human, the report lists the files to read with questions; the list is
+    never empty and never consists of deleted files only.
+16. Reviews produce `review.html` and a `review.md` fix list; every deterministic candidate is
+    confirmed or dismissed.
+17. Results are published to the feature folder with `index.md` and history; the folder is
+    configurable per machine and overridable per project.
 
 # 15. Out of Scope
 
@@ -551,17 +560,16 @@ is present and no trap is in the top 10. Fixtures are extended with real histori
 - Clickable IDE links.
 - Modifying or replacing Superpowers skills.
 
-# 16. Implementation Order
+# 16. Status and Next Steps
 
-1. **Foundation:** analysis schema, `collect_changes.py`, `_base` ruleset, `rules.yaml` loading,
-   fixtures.
-2. **Stage 1–2 core:** triage, references, scoring, verdict policy, `change-impact-score` with a
-   minimal report. Validate against fixtures from here on.
-3. **Rulesets:** `java-spring`, `dotnet`, `review-init`.
-4. **Report:** heatmap, treemap, flows, interaction diagrams, filters.
-5. **Stage 0:** `change-plan-summary`, plan extraction reused for plan drift.
-6. **Stage 3:** `change-explanation`.
-7. **Calibration:** real PRs, consistency check, false positive / negative review, cost tuning.
+Done (0.4.0): all stages and skills, Java/Spring and .NET rulesets, reviews, knowledge-base
+folders, marketplace; validated on the fixtures and on one real change (182 files).
+
+Next:
+1. Calibration on more real changes: turn each into a fixture with `expected.json`.
+2. Group near-identical changes across files ("same change in N files") so a human reads one.
+3. Cross-repository index for one ticket spanning several repositories.
+4. Measure cost after deleted-module grouping and cheaper light-batch models.
 
 # 17. Design Principles
 

@@ -15,6 +15,17 @@ Run directory: `<report_dir>/<DATE>-<JIRA>-<feature>/runs/<YYYYMMDD-HHMMSS>-<sho
 | `impact-report.html` | `render_report.py` | developer |
 | `plan-summary.json` / `.html` | model / `render_report.py` | developer, `aggregate.py` |
 | `explanation-<slug>.json` / `.html` | model / `render_report.py` | developer |
+| `ai-review-focus.md` | `aggregate.py` | an AI reviewer (checklist for files the human does not read) |
+
+Feature folder (`<report_dir>/<DATE>-<JIRA>-<feature>/`):
+
+| File | Written by | Content |
+|---|---|---|
+| `feature.json` | `_feature.py` | identity (jira, title, slug, branch, title_source, repo_root, created) + `outputs` registry (latest json/html per kind) |
+| `index.md` | `_feature.py` (on every publish) | frontmatter + goal, plan contradictions, review mode, read-yourself list, top files, reviews table, blockers, links |
+| `*.html`, `review-*.md`, `ai-review-focus.md` | `render_report.py` (publish) | latest published outputs |
+| `history/` | `render_report.py` (publish) | previous versions, `<YYYY-MM-DD-HHMM>-<name>` |
+| `runs/<stamp>-<id>/` | `collect_changes.py`, `feature_dir.py` | working data of each run (table above) |
 
 ## Enumerations
 
@@ -289,13 +300,13 @@ Each review writes into its own sub-directory of the report directory:
 
 | File | Written by | Read by |
 |---|---|---|
-| `scope.json` | `review_scope.py` | model, `merge_review.py` |
-| `candidates.json` | `review_scope.py` (deterministic hints) | model |
-| `batch-<n>.json` | model (subagents) | `merge_review.py` |
-| `spec-matrix.json` | model (spec only) | `merge_review.py` |
-| `review.json` | `merge_review.py` | `render_report.py review` |
-| `review.html` | `render_report.py review` | developer |
-| `review.md` | `merge_review.py` | a fixing session (hand-off checklist) |
+| `scope.json` | `review.py prepare` | model, `review.py merge` |
+| `candidates.json` | `review.py prepare` (deterministic hints) | model |
+| `batch-<n>.json` | model (subagents) | `review.py merge` |
+| `spec-matrix.json`, `spec-part-<n>.json`, `spec-findings-<n>.json` | model (spec only) | `review.py merge` |
+| `review.json` | `review.py merge` | `render_report.py review` |
+| `review.html` | `render_report.py review` | developer (published as `review-<kind>.html`) |
+| `review.md` | `review.py merge` | a fixing session (published as `review-<kind>.md`) |
 
 **Severity**: `blocker` (must fix before merge: wrong behaviour, security hole, data loss,
 requirement violated), `major` (should fix: convention/design problem with real cost, missing
@@ -329,7 +340,7 @@ test for changed behaviour), `minor` (worth fixing: readability, small inconsist
 }
 ```
 
-`id` is assigned by `merge_review.py`; the model omits it.
+`id` is assigned by `review.py merge`; the model omits it.
 
 ### batch-<n>.json
 
