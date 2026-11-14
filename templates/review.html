@@ -1,0 +1,662 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="code-review-assistant render_report.py">
+<title>@@TITLE@@</title>
+<style>
+@@BASE_CSS@@
+</style>
+<style>
+/* ---------- review ---------- */
+.rv-head { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 14px; }
+@media (max-width: 980px) { .rv-head { grid-template-columns: minmax(0, 1fr); } }
+.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; margin-bottom: 10px; }
+.stat { background: var(--surface-2); border-radius: 5px; padding: 6px 9px; min-width: 0; }
+.stat .k { font-size: 10.5px; color: var(--text-3); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; white-space: nowrap; }
+.stat .v { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.kv { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 5px 10px; align-items: baseline; font-size: 12px; }
+.kv > .k { color: var(--text-3); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; font-weight: 600; }
+.kv > .v { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
+.chip.ok::before { content: "\2713"; color: var(--ok); font-weight: 800; }
+.chip.miss { background: var(--warn-bg); border-color: transparent; color: var(--warn); }
+.lim li { color: var(--text-2); }
+.lim .ico { color: var(--warn); }
+
+.sevs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+@media (max-width: 700px) { .sevs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.stile {
+  --c: var(--sev-info); --bg: var(--sev-info-bg);
+  display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border);
+  border-top: 5px solid var(--c); background: var(--surface); cursor: pointer; text-align: left; box-shadow: var(--shadow);
+}
+.stile:hover { background: var(--bg); }
+.stile .n { font-size: 30px; font-weight: 800; line-height: 1; color: var(--c); font-variant-numeric: tabular-nums; }
+.stile .l { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); }
+.stile .d { font-size: 11px; color: var(--text-3); }
+.stile.zero .n { color: var(--text-3); }
+.stile.sel { outline: 2px solid var(--c); outline-offset: 1px; background: var(--bg); }
+.stile.blocker { --c: var(--sev-blocker); --bg: var(--sev-blocker-bg); }
+.stile.blocker:not(.zero) { background: var(--sev-blocker); border-color: var(--sev-blocker); }
+.stile.blocker:not(.zero) .n, .stile.blocker:not(.zero) .l, .stile.blocker:not(.zero) .d { color: #fff; }
+.stile.blocker.sel { outline-color: var(--text); }
+.stile.major { --c: var(--sev-major); --bg: var(--sev-major-bg); }
+.stile.minor { --c: var(--sev-minor); --bg: var(--sev-minor-bg); }
+
+.cats { display: grid; grid-template-columns: minmax(110px, 170px) minmax(0, 1fr) 34px; gap: 4px 10px; align-items: center; font-size: 12px; }
+.cats .r { display: contents; cursor: pointer; }
+.cats .r > * { padding: 2px 0; }
+.cats .r:hover .cl { color: var(--accent); }
+.cats .r.sel .cl { color: var(--accent); font-weight: 700; }
+.cats .r.zero .cl, .cats .r.zero .cn { color: var(--text-3); }
+.cats .cl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-2); }
+.cats .cn { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+.sbar { display: flex; height: 12px; border-radius: 3px; overflow: hidden; background: var(--surface-2); gap: 1px; }
+.sbar i { display: block; height: 100%; }
+.sbar i.blocker { background: var(--sev-blocker); } .sbar i.major { background: var(--sev-major); }
+.sbar i.minor { background: var(--sev-minor); } .sbar i.info { background: var(--sev-info); }
+.sev-legend { display: flex; gap: 10px; flex-wrap: wrap; font-size: 11px; color: var(--text-3); }
+.sev-legend span { display: inline-flex; gap: 4px; align-items: center; }
+.sev-legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+/* spec */
+.cov { display: flex; height: 18px; border-radius: 4px; overflow: hidden; gap: 2px; background: var(--surface-2); }
+.cov span { display: flex; align-items: center; justify-content: center; font-size: 10.5px; font-weight: 700; color: #fff; min-width: 0; overflow: hidden; white-space: nowrap; }
+.cov-legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 11.5px; color: var(--text-2); margin-top: 6px; }
+.cov-legend span { display: inline-flex; gap: 5px; align-items: center; }
+.cov-legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.c-implemented { background: var(--ok); } .c-partial { background: var(--warn); } .c-missing { background: var(--sev-blocker); }
+.c-contradicted { background: var(--st-contra); } .c-unclear { background: var(--text-3); }
+.stb { display: inline-flex; align-items: center; gap: 3px; height: 18px; padding: 0 6px; border-radius: 3px; font-size: 10.5px; font-weight: 700; white-space: nowrap; text-transform: uppercase; letter-spacing: .03em; }
+.stb.implemented, .stb.followed, .stb.yes { background: var(--ok-bg); color: var(--ok); }
+.stb.implemented::before, .stb.followed::before, .stb.yes::before { content: "\2713"; }
+.stb.partial { background: var(--warn-bg); color: var(--warn); }
+.stb.partial::before { content: "\25D0"; }
+.stb.missing, .stb.no { background: var(--sev-blocker-bg); color: var(--sev-blocker); }
+.stb.missing::before, .stb.no::before { content: "\2715"; }
+.stb.contradicted, .stb.deviated { background: var(--st-contra-bg); color: var(--st-contra); border: 1px solid var(--st-contra); }
+.stb.contradicted::before, .stb.deviated::before { content: "\21C4"; }
+.stb.unclear, .stb.not_applicable, .stb.unknown { background: var(--surface-3); color: var(--text-3); border: 1px dashed var(--border-strong); }
+.ev { display: flex; flex-wrap: wrap; gap: 4px; }
+.ev a { font-family: var(--mono); font-size: 11px; padding: 1px 6px; border-radius: 3px; background: var(--surface-2); border: 1px solid var(--border); cursor: pointer; color: var(--text-2); white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+.ev a:hover { border-color: var(--border-strong); color: var(--text); text-decoration: none; }
+.ev a.nolink { cursor: default; }
+.note-c { color: var(--text-2); font-size: 12px; }
+tr.mismatch td { background: var(--sev-blocker-bg); }
+tr.mismatch td.act { color: var(--sev-blocker); font-weight: 700; }
+.match { font-weight: 800; font-size: 14px; }
+.match.yes { color: var(--ok); } .match.no { color: var(--sev-blocker); }
+.tbl td.mono { font-family: var(--mono); font-size: 12px; }
+
+/* toolbar + findings */
+.toolbar {
+  position: sticky; top: 0; z-index: 20; background: var(--bg); padding: 8px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+}
+.toolbar .search { flex: 1 1 200px; max-width: 320px; }
+.toolbar .select { max-width: 220px; }
+.toolbar .count { color: var(--text-3); font-size: 12px; margin-left: auto; white-space: nowrap; }
+.grp { margin-top: 12px; }
+.grp-h { display: flex; align-items: center; gap: 8px; padding: 6px 2px; cursor: pointer; user-select: none; flex-wrap: wrap; }
+.grp-h .tw { color: var(--text-3); font-size: 11px; width: 10px; transition: transform .12s; }
+.grp.collapsed .tw { transform: rotate(-90deg); }
+.grp.collapsed .rows { display: none; }
+.grp-h .gt { font-weight: 700; font-size: 13px; }
+.grp-h .gr { color: var(--text-3); font-size: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; }
+.rows { border: 1px solid var(--border); border-radius: var(--r); background: var(--surface); overflow: hidden; }
+.fr { border-top: 1px solid var(--border); }
+.fr:first-child { border-top: 0; }
+.fr.s-blocker { box-shadow: inset 4px 0 0 var(--sev-blocker); }
+.fh {
+  display: grid; grid-template-columns: 70px 130px minmax(0, 1fr) minmax(120px, 0.7fr) 74px 12px; gap: 10px; align-items: center;
+  padding: 6px 10px 6px 12px; cursor: pointer; min-height: 32px;
+}
+.fh:hover { background: var(--surface-2); }
+.fr.cur > .fh { background: var(--accent-bg); }
+.fr.open > .fh { background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.fh .cat { font-size: 11.5px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fh .ttl { font-weight: 600; font-size: 12.5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fr.inferred .ttl { font-style: italic; font-weight: 500; }
+.fh .loc { font-family: var(--mono); font-size: 11.5px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: rtl; text-align: left; }
+.fh .loc bdi { direction: ltr; }
+.fh .caret { color: var(--text-3); font-size: 11px; transition: transform .12s; }
+.fr.open .caret { transform: rotate(90deg); }
+@media (max-width: 860px) {
+  .fh { grid-template-columns: 70px minmax(0, 1fr) 74px 12px; }
+  .fh .cat { display: none; }
+  .fh .loc { grid-column: 2 / -1; grid-row: 2; }
+}
+.fd { padding: 10px 14px 12px 16px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 900px) { .fd { grid-template-columns: minmax(0, 1fr); } }
+.fd .bh { font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--text-3); margin: 0 0 4px; }
+.fd .blk + .blk { margin-top: 12px; }
+.fd .desc { font-size: 13px; }
+.sugg { border: 1px solid var(--ok); background: var(--ok-bg); border-radius: 5px; padding: 7px 10px; font-size: 12.5px; color: var(--text); }
+.sugg::before { content: "\2192  "; color: var(--ok); font-weight: 800; }
+.rel li { font-size: 12px; align-items: baseline; }
+.rel .loc2 { font-family: var(--mono); font-size: 11.5px; }
+.meta-line { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 11px; color: var(--text-3); }
+.files-tbl td.p { font-family: var(--mono); font-size: 11.5px; }
+.files-tbl tr.click { cursor: pointer; }
+.files-tbl tr.click:hover td { background: var(--surface-2); }
+.files-tbl tr.sel td { background: var(--accent-bg); }
+.cnts { display: inline-flex; gap: 3px; }
+.cnts .sev { min-width: 0; height: 16px; font-size: 9.5px; padding: 0 5px; }
+.cnts .sev.blocker::before { display: none; }
+</style>
+</head>
+<body>
+<div class="page" id="app"><noscript><p style="padding:20px">This report renders with JavaScript. Enable it to view the review.</p></noscript></div>
+<script type="application/json" id="cra-data">@@DATA_JSON@@</script>
+<script>
+@@COMPONENTS_JS@@
+</script>
+<script>
+(function () {
+  'use strict';
+  var C = window.CRA, h = C.h, arr = C.arr, obj = C.obj, str = C.str, num = C.num, strs = C.strs;
+  var app = document.getElementById('app');
+  var raw = C.readJson('cra-data');
+  if (!raw || raw.__error || typeof raw !== 'object') {
+    C.fatal(app, raw && raw.__error ? 'The embedded review is not valid JSON (' + raw.__error + ').' : 'No review data is embedded.');
+    return;
+  }
+  var R = obj(raw);
+  C.initTooltip();
+
+  /* ================================================================ */
+  /* constants + normalisation                                        */
+  /* ================================================================ */
+  var KINDS = { ai: 'AI review', security: 'Security review', spec: 'Spec review' };
+  var kind = KINDS[str(R.kind)] ? str(R.kind) : '';
+  var SEVS = ['blocker', 'major', 'minor', 'info'];
+  var SEV_HINT = {
+    blocker: 'Must fix before merge: wrong behaviour, security hole, data loss, requirement violated',
+    major: 'Should fix: convention or design problem with real cost, missing test for changed behaviour',
+    minor: 'Worth fixing: readability, small inconsistency',
+    info: 'Observation or question'
+  };
+  var CATS = {
+    ai: ['conventions', 'consistency', 'reinvention', 'dead_code', 'overengineering', 'ai_artifacts', 'tests', 'error_handling', 'resources', 'performance', 'readability'],
+    security: ['authz', 'authn', 'input_validation', 'injection', 'secrets', 'crypto', 'data_exposure', 'ssrf', 'deserialization', 'config', 'dependencies', 'logging'],
+    spec: ['requirement', 'business_rule', 'decision', 'contract', 'unrequested', 'test_gap']
+  };
+  var CAT_LABEL = {
+    dead_code: 'Dead code', overengineering: 'Over-engineering', ai_artifacts: 'AI artifacts', error_handling: 'Error handling',
+    authz: 'Authorization', authn: 'Authentication', input_validation: 'Input validation', data_exposure: 'Data exposure',
+    ssrf: 'SSRF', business_rule: 'Business rule', test_gap: 'Test gap', crypto: 'Crypto', config: 'Configuration'
+  };
+  var catLabel = function (c) {
+    c = str(c);
+    if (!c) return 'Uncategorised';
+    if (CAT_LABEL[c]) return CAT_LABEL[c];
+    var t = c.replace(/[_-]+/g, ' ');
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  };
+  var sevOf = function (s) { s = str(s).toLowerCase(); return SEVS.indexOf(s) >= 0 ? s : 'info'; };
+  var sevBadge = function (s) { return h('span', { class: 'sev ' + s, 'data-tip': s + ': ' + SEV_HINT[s] }, s); };
+  var loc = function (path, a, b) {
+    var p = str(path);
+    if (!p) return '';
+    return p + (a != null && a !== '' ? ':' + a + (b != null && b !== '' && String(b) !== String(a) ? '–' + b : '') : '');
+  };
+
+  var change = obj(R.change), sources = obj(change.sources), scope = obj(R.scope);
+  var kinds = {};
+  strs(sources.spec).forEach(function (p) { kinds[p] = 'spec'; });
+  strs(sources.plan).forEach(function (p) { kinds[p] = 'plan'; });
+  strs(sources.conventions).forEach(function (p) { kinds[p] = 'conv'; });
+
+  var findings = [];
+  arr(R.findings).forEach(function (x, i) {
+    x = obj(x);
+    if (!Object.keys(x).length) return;
+    var F = {
+      raw: x, idx: i, id: str(x.id) || ('#' + (i + 1)), sev: sevOf(x.severity), cat: str(x.category),
+      title: str(x.title) || str(x.description).slice(0, 90) || 'Finding', path: str(x.path),
+      inferred: x.confidence !== 'verified'
+    };
+    F.loc = loc(F.path, x.line_start, x.line_end);
+    F.search = [F.id, F.title, x.description, x.suggestion, F.path, F.cat, x.candidate, x.snippet].map(str).join('\n').toLowerCase();
+    findings.push(F);
+  });
+  var sevRank = function (s) { return SEVS.indexOf(s); };
+  findings.sort(function (a, b) { return sevRank(a.sev) - sevRank(b.sev) || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0) || num(a.raw.line_start) - num(b.raw.line_start) || a.idx - b.idx; });
+  var byId = {};
+  findings.forEach(function (F) { byId[F.id] = F; });
+
+  var counts = { blocker: 0, major: 0, minor: 0, info: 0 };
+  findings.forEach(function (F) { counts[F.sev]++; });
+  var summary = obj(R.summary);
+  // findings present win; the stored summary is used only when the list is empty
+  if (!findings.length) SEVS.forEach(function (s) { if (summary[s] != null) counts[s] = num(summary[s]); });
+
+  // files: declared list + any finding path
+  var files = [], fileByPath = {};
+  arr(R.files).map(obj).forEach(function (f) {
+    var p = str(f.path);
+    if (!p || fileByPath[p]) return;
+    fileByPath[p] = { path: p, role: str(f.role), list: [] };
+    files.push(fileByPath[p]);
+  });
+  findings.forEach(function (F) {
+    if (!F.path) return;
+    if (!fileByPath[F.path]) { fileByPath[F.path] = { path: F.path, role: '', list: [] }; files.push(fileByPath[F.path]); }
+    fileByPath[F.path].list.push(F);
+  });
+  files.forEach(function (f) {
+    f.worst = f.list.reduce(function (m, F) { return Math.min(m, sevRank(F.sev)); }, 9);
+  });
+
+  /* ================================================================ */
+  /* top bar + header                                                 */
+  /* ================================================================ */
+  var title = KINDS[kind] || 'Review';
+  var metaBits = [];
+  if (change.branch) metaBits.push(h('span', { 'data-tip': 'Branch' }, '⎇ ' + str(change.branch)));
+  if (change.boundary || change.base_ref) metaBits.push(h('span', { 'data-tip': 'Change boundary' },
+    str(change.boundary || 'boundary') + (change.base_ref ? ' vs ' + str(change.base_ref) : '') + (change.base_commit ? ' @ ' + str(change.base_commit).slice(0, 10) : '')));
+  if (R.generated_at) metaBits.push(h('span', { 'data-tip': 'Generated at' }, str(R.generated_at).replace('T', ' ')));
+  app.appendChild(h('header', { class: 'topbar' }, [
+    h('span', { class: 'brand' }, 'Code Review Assistant'),
+    h('span', { class: 'title' }, title),
+    h('span', { class: 'meta' }, metaBits),
+    h('span', { class: 'spacer' }),
+    h('span', { class: 'muted', style: { 'font-size': '11px' } }, [h('span', { class: 'kbd' }, '/'), ' search  ', h('span', { class: 'kbd' }, 'j'), h('span', { class: 'kbd' }, 'k'), ' move  ', h('span', { class: 'kbd' }, 'o'), ' open']),
+    C.themeToggle()
+  ]));
+
+  function stat(k, v, tip) { return h('div', { class: 'stat', 'data-tip': tip || null }, [h('div', { class: 'k' }, k), h('div', { class: 'v' }, v == null ? '–' : C.fmt(v))]); }
+  function pathChips(list, cls) {
+    var l = strs(list);
+    if (!l.length) return [h('span', { class: 'muted' }, '—')];
+    return l.map(function (p) { return h('span', { class: 'chip ' + (cls || ''), 'data-tip': p }, C.basename(p) || p); });
+  }
+  var limitations = strs(R.limitations);
+  app.appendChild(h('div', { class: 'rv-head' }, [
+    C.card('Scope', kind ? h('code', null, 'review-' + kind) : null, [
+      h('div', { class: 'stats' }, [
+        stat('Files', scope.files != null ? num(scope.files) : null, 'Files in the change boundary'),
+        stat('Reviewed', scope.reviewed != null ? num(scope.reviewed) : null, 'Files read by the reviewers'),
+        stat('Mech. groups', scope.mechanical_groups_sampled != null ? num(scope.mechanical_groups_sampled) : null, 'Mechanical groups reviewed by sample'),
+        stat('Excluded', scope.excluded != null ? num(scope.excluded) : null, 'Files excluded from review'),
+        stat('Findings', findings.length)
+      ]),
+      h('div', { class: 'kv' }, [
+        h('span', { class: 'k' }, 'Spec'), h('span', { class: 'v' }, pathChips(sources.spec, 'ok')),
+        h('span', { class: 'k' }, 'Plan'), h('span', { class: 'v' }, pathChips(sources.plan, 'ok')),
+        h('span', { class: 'k' }, 'Conventions'), h('span', { class: 'v' }, pathChips(sources.conventions, 'ok')),
+        strs(sources.missing).length ? h('span', { class: 'k' }, 'Missing') : null,
+        strs(sources.missing).length ? h('span', { class: 'v' }, strs(sources.missing).map(function (m) { return h('span', { class: 'chip miss' }, '✕ ' + m); })) : null
+      ])
+    ]),
+    C.card('Limitations', limitations.length ? CRA.plural(limitations.length, 'item') : null,
+      limitations.length ? h('ul', { class: 'ilist lim' }, limitations.map(function (l) { return h('li', null, [h('span', { class: 'ico' }, '⚠'), h('span', null, l)]); }))
+        : h('div', { class: 'empty' }, 'No limitations reported.'))
+  ]));
+
+  /* ================================================================ */
+  /* severity tiles + categories                                      */
+  /* ================================================================ */
+  var state = { group: 'severity', q: '', sev: '', cat: '', conf: '', file: '' };
+  var DEFAULTS = { q: '', sev: '', cat: '', conf: '', file: '' };
+  var tiles = {};
+  app.appendChild(h('div', { class: 'sevs' }, SEVS.map(function (s) {
+    var t = h('button', { type: 'button', class: 'stile ' + s + (counts[s] ? '' : ' zero'), 'data-tip': SEV_HINT[s] + '\nClick to filter',
+      onclick: function () { setFilter({ sev: state.sev === s ? '' : s }, true); } },
+      [h('span', { class: 'n' }, C.fmt(counts[s])), h('span', { class: 'l' }, s), h('span', { class: 'd' }, SEV_HINT[s].split(':')[0])]);
+    tiles[s] = t;
+    return t;
+  })));
+
+  var catOrder = (CATS[kind] || []).slice();
+  findings.forEach(function (F) { if (catOrder.indexOf(F.cat) < 0) catOrder.push(F.cat); });
+  var catCount = {};
+  catOrder.forEach(function (c) { catCount[c] = { total: 0, blocker: 0, major: 0, minor: 0, info: 0 }; });
+  findings.forEach(function (F) { catCount[F.cat].total++; catCount[F.cat][F.sev]++; });
+  var maxCat = Math.max.apply(null, [1].concat(catOrder.map(function (c) { return catCount[c].total; })));
+  var catRows = {};
+  var catsEl = h('div', { class: 'cats' });
+  catOrder.forEach(function (c) {
+    var cc = catCount[c];
+    var bar = h('div', { class: 'sbar', style: { width: Math.max(cc.total ? 4 : 0, cc.total / maxCat * 100) + '%' } });
+    SEVS.forEach(function (s) { if (cc[s]) bar.appendChild(h('i', { class: s, style: { flex: String(cc[s]) } })); });
+    var r = h('div', { class: 'r' + (cc.total ? '' : ' zero'), 'data-tip': catLabel(c) + ': ' + SEVS.filter(function (s) { return cc[s]; }).map(function (s) { return cc[s] + ' ' + s; }).join(', ') + (cc.total ? '\nClick to filter' : 'no findings'),
+      onclick: function () { if (cc.total) setFilter({ cat: state.cat === c ? '' : c }, true); } },
+      [h('span', { class: 'cl' }, catLabel(c)), h('div', null, bar), h('span', { class: 'cn' }, cc.total ? String(cc.total) : '–')]);
+    catRows[c] = r;
+    catsEl.appendChild(r);
+  });
+  var sevLegend = h('span', { class: 'sev-legend' }, SEVS.map(function (s) { return h('span', null, [h('i', { style: { background: 'var(--sev-' + s + ')' } }), s]); }));
+  app.appendChild(h('div', { style: { 'margin-top': '14px' } }, C.card('Categories', 'findings per category, by severity',
+    catOrder.length ? catsEl : h('div', { class: 'empty' }, 'No findings.'), { tools: sevLegend })));
+
+  /* ================================================================ */
+  /* spec matrix                                                      */
+  /* ================================================================ */
+  function evidenceEl(list) {
+    var ev = arr(list).map(obj).filter(function (e) { return e.path; });
+    if (!ev.length) return h('span', { class: 'muted' }, '—');
+    return h('div', { class: 'ev' }, ev.map(function (e) {
+      var label = C.basename(e.path) + (e.line_start ? ':' + e.line_start + (e.line_end && e.line_end !== e.line_start ? '–' + e.line_end : '') : '');
+      var tip = loc(e.path, e.line_start, e.line_end) + (e.note ? '\n' + str(e.note) : '');
+      var hasF = fileByPath[str(e.path)] && fileByPath[str(e.path)].list.length;
+      return hasF ? h('a', { 'data-tip': tip + '\nClick to show findings in this file', onclick: function () { setFilter(Object.assign({}, DEFAULTS, { file: str(e.path) }), true); } }, label)
+        : h('a', { class: 'nolink', 'data-tip': tip }, label);
+    }));
+  }
+  function stb(v, map) { v = str(v); var k = map.indexOf(v) >= 0 ? v : 'unknown'; return h('span', { class: 'stb ' + k }, (v || 'unknown').replace(/_/g, ' ')); }
+  if (kind === 'spec' || (R.spec && typeof R.spec === 'object')) {
+    var S = obj(R.spec);
+    var reqs = arr(S.requirements).map(obj).filter(function (r) { return Object.keys(r).length; });
+    var REQ_ST = ['implemented', 'partial', 'missing', 'contradicted', 'unclear'];
+    var cov = {};
+    REQ_ST.forEach(function (k) { cov[k] = 0; });
+    reqs.forEach(function (r) { var k = REQ_ST.indexOf(str(r.status)) >= 0 ? str(r.status) : 'unclear'; cov[k]++; });
+    var covBar = h('div', { class: 'cov' }), covLegend = h('div', { class: 'cov-legend' });
+    REQ_ST.forEach(function (k) {
+      if (!cov[k]) return;
+      covBar.appendChild(h('span', { class: 'c-' + k, style: { flex: String(cov[k]) }, 'data-tip': cov[k] + ' ' + k }, String(cov[k])));
+      covLegend.appendChild(h('span', null, [h('i', { class: 'c-' + k }), cov[k] + ' ' + k]));
+    });
+    var specSources = strs(S.sources);
+    var reqBody = reqs.length ? h('table', { class: 'tbl stackable' }, [
+      h('thead', null, h('tr', null, ['ID', 'Requirement', 'Status', 'Tested', 'Evidence', 'Note'].map(function (c) { return h('th', null, c); }))),
+      h('tbody', null, reqs.map(function (r) {
+        return h('tr', null, [
+          h('td', { class: 'c-id' }, str(r.id)),
+          h('td', null, [h('div', null, str(r.text)), r.ref ? C.refEl(r.ref, kinds) : null]),
+          h('td', { class: 'c-badge' }, stb(r.status, REQ_ST)),
+          h('td', { class: 'c-badge' }, stb(r.tested, ['yes', 'partial', 'no'])),
+          h('td', null, evidenceEl(r.evidence)),
+          h('td', { class: 'note-c' }, str(r.note))
+        ]);
+      }))
+    ]) : h('div', { class: 'empty', style: { padding: '8px 12px' } }, 'No requirements in the matrix.');
+    app.appendChild(h('div', { class: 'section-title' }, [h('h2', null, 'Spec conformance'), specSources.length ? h('span', { class: 'count' }, specSources.map(C.basename).join(' · ')) : null]));
+    app.appendChild(C.card('Requirements', reqs.length ? CRA.plural(reqs.length, 'requirement') : null,
+      [reqs.length ? h('div', { style: { padding: '10px 12px 8px' } }, [covBar, covLegend]) : null, reqBody], { flush: true }));
+
+    var decs = arr(S.decisions).map(obj).filter(function (r) { return Object.keys(r).length; });
+    var exs = arr(S.examples).map(obj).filter(function (r) { return Object.keys(r).length; });
+    var unreq = arr(S.unrequested).map(function (u) { return typeof u === 'string' ? { text: u } : obj(u); }).filter(function (u) { return u.text; });
+    var row2 = [];
+    row2.push(C.card('Decisions', decs.length ? String(decs.length) : null, decs.length ? h('table', { class: 'tbl stackable' }, [
+      h('thead', null, h('tr', null, ['Decision', 'Status', 'Evidence'].map(function (c) { return h('th', null, c); }))),
+      h('tbody', null, decs.map(function (d) {
+        return h('tr', null, [h('td', null, [h('div', null, str(d.text)), d.note ? h('div', { class: 'note-c' }, str(d.note)) : null, d.ref ? C.refEl(d.ref, kinds) : null]),
+          h('td', { class: 'c-badge' }, stb(d.status, ['followed', 'deviated', 'not_applicable', 'unclear'])), h('td', null, evidenceEl(d.evidence))]);
+      }))
+    ]) : h('div', { class: 'empty', style: { padding: '8px 12px' } }, 'No decisions checked.'), { flush: true }));
+    row2.push(C.card('Unrequested', unreq.length ? String(unreq.length) : null, unreq.length ? h('ul', { class: 'ilist', style: { padding: '4px 12px' } }, unreq.map(function (u) {
+      return h('li', null, [h('span', { class: 'ico' }, '+'), h('div', { style: { 'min-width': '0' } }, [h('div', null, str(u.text)), u.note ? h('div', { class: 'note-c' }, str(u.note)) : null, evidenceEl(u.evidence)])]);
+    })) : h('div', { class: 'empty', style: { padding: '8px 12px' } }, 'Nothing implemented beyond the spec and plan.'), { flush: true }));
+    app.appendChild(h('div', { class: 'grid grid-2', style: { 'margin-top': '14px' } }, row2));
+    if (exs.length) {
+      var mism = exs.filter(function (e) { return e.match === false; }).length;
+      app.appendChild(h('div', { style: { 'margin-top': '14px' } }, C.card('Worked examples', mism ? mism + ' of ' + exs.length + ' do not match' : 'all ' + exs.length + ' match', h('table', { class: 'tbl stackable' }, [
+        h('thead', null, h('tr', null, ['', 'Rule', 'Input', 'Expected', 'Actual', 'Evidence'].map(function (c) { return h('th', null, c); }))),
+        h('tbody', null, exs.map(function (e) {
+          var m = e.match === true ? 'yes' : e.match === false ? 'no' : null;
+          return h('tr', { class: m === 'no' ? 'mismatch' : null }, [
+            h('td', { class: 'c-badge' }, m ? h('span', { class: 'match ' + m, 'data-tip': m === 'yes' ? 'matches the spec' : 'does not match the spec' }, m === 'yes' ? '✓' : '✕') : h('span', { class: 'muted', 'data-tip': 'not evaluated' }, '?')),
+            h('td', null, str(e.rule)), h('td', null, str(e.input)), h('td', { class: 'mono' }, str(e.expected)), h('td', { class: 'mono act' }, str(e.actual)), h('td', null, evidenceEl(e.evidence))
+          ]);
+        }))
+      ]), { flush: true })));
+    }
+  }
+
+  /* ================================================================ */
+  /* findings list                                                    */
+  /* ================================================================ */
+  app.appendChild(h('div', { class: 'section-title', id: 'findings' }, [h('h2', null, 'Findings'), h('span', { class: 'count' }, CRA.plural(findings.length, 'finding'))]));
+  var search = h('input', { class: 'input search', type: 'search', placeholder: 'Search title, path, text…  ( / )', 'aria-label': 'Search findings' });
+  var selSev = h('select', { class: 'select', 'aria-label': 'Severity' }, [h('option', { value: '' }, 'All severities')].concat(SEVS.map(function (s) { return h('option', { value: s }, s + ' (' + counts[s] + ')'); })));
+  var selCat = h('select', { class: 'select', 'aria-label': 'Category' }, [h('option', { value: '' }, 'All categories')].concat(catOrder.filter(function (c) { return catCount[c].total; }).map(function (c) { return h('option', { value: c }, catLabel(c) + ' (' + catCount[c].total + ')'); })));
+  var selConf = h('select', { class: 'select', 'aria-label': 'Confidence' }, [['', 'Any confidence'], ['verified', 'Verified'], ['inferred', 'Inferred']].map(function (o) { return h('option', { value: o[0] }, o[1]); }));
+  var withF = files.filter(function (f) { return f.list.length; }).sort(function (a, b) { return a.path < b.path ? -1 : 1; });
+  var selFile = h('select', { class: 'select', 'aria-label': 'File' }, [h('option', { value: '' }, 'All files')].concat(withF.map(function (f) { return h('option', { value: f.path }, C.basename(f.path) + ' (' + f.list.length + ')'); })));
+  var seg = h('div', { class: 'seg', role: 'group', 'aria-label': 'Group by' });
+  var bSev = h('button', { type: 'button', onclick: function () { setGroup('severity'); } }, 'By severity');
+  var bFile = h('button', { type: 'button', onclick: function () { setGroup('file'); } }, 'By file');
+  seg.appendChild(bSev); seg.appendChild(bFile);
+  var countEl = h('span', { class: 'count' });
+  var resetBtn = h('button', { class: 'btn sm ghost', type: 'button', onclick: function () { setFilter(DEFAULTS); } }, 'Reset filters');
+  var mdBtn = h('button', { class: 'btn', type: 'button', 'data-tip': 'Copy the findings currently shown as a Markdown checklist', onclick: function () { C.copy(markdown()); } }, 'Copy as Markdown');
+  var toolbar = h('div', { class: 'toolbar' }, [seg, search, selSev, selCat, selConf, selFile, resetBtn, mdBtn, countEl]);
+  app.appendChild(toolbar);
+  search.addEventListener('input', C.debounce(function () { setFilter({ q: search.value }); }, 90));
+  selSev.addEventListener('change', function () { setFilter({ sev: selSev.value }); });
+  selCat.addEventListener('change', function () { setFilter({ cat: selCat.value }); });
+  selConf.addEventListener('change', function () { setFilter({ conf: selConf.value }); });
+  selFile.addEventListener('change', function () { setFilter({ file: selFile.value }); });
+
+  var listBox = h('section');
+  app.appendChild(listBox);
+  var emptyEl = h('div', { class: 'empty', style: { padding: '16px' }, hidden: true }, findings.length ? 'No findings match the filters.' : 'No findings: nothing to report for this review.');
+  app.appendChild(emptyEl);
+
+  var rows = {};
+  findings.forEach(function (F) {
+    var head = h('div', { class: 'fh', role: 'button', tabindex: '0', 'aria-expanded': 'false' }, [
+      sevBadge(F.sev),
+      h('span', { class: 'cat', 'data-tip': catLabel(F.cat) }, catLabel(F.cat)),
+      h('span', { class: 'ttl', 'data-tip': F.title }, F.title),
+      h('span', { class: 'loc', 'data-tip': F.loc || 'no location' }, h('bdi', null, F.loc || '—')),
+      C.conf(F.raw.confidence),
+      h('span', { class: 'caret' }, '▸')
+    ]);
+    var body = h('div', { hidden: true });
+    var row = h('div', { class: 'fr s-' + F.sev + (F.inferred ? ' inferred' : '') }, [head, body]);
+    row._F = F; row._head = head; row._body = body;
+    head.addEventListener('click', function () { setCurrent(row); toggle(F); });
+    rows[F.id + '\u0001' + F.idx] = row;
+    F.row = row;
+  });
+  function toggle(F, open) {
+    var row = F.row;
+    if (open === undefined) open = row._body.hidden;
+    if (open && !row._built) { row._body.appendChild(detail(F)); row._built = true; }
+    row._body.hidden = !open;
+    row.classList.toggle('open', open);
+    row._head.setAttribute('aria-expanded', String(open));
+  }
+  function detail(F) {
+    var x = F.raw;
+    var left = h('div'), right = h('div');
+    left.appendChild(h('div', { class: 'blk' }, [h('div', { class: 'bh' }, 'What is wrong'),
+      x.description ? h('p', { class: 'desc' }, str(x.description)) : h('p', { class: 'empty' }, 'No description.')]));
+    if (x.snippet) {
+      left.appendChild(h('div', { class: 'blk' }, [h('div', { class: 'bh' }, 'Code'),
+        h('div', { class: 'snip' }, [F.loc ? h('div', { class: 'snip-h' }, h('span', { class: 'mono', 'data-tip': F.path }, F.loc)) : null,
+          h('pre', null, str(x.snippet)), C.copyBtn(str(x.snippet))])]));
+    }
+    if (x.suggestion) right.appendChild(h('div', { class: 'blk' }, [h('div', { class: 'bh' }, 'Suggestion'), h('div', { class: 'sugg' }, str(x.suggestion))]));
+    var rel = arr(x.related).map(obj).filter(function (r) { return r.path; });
+    if (rel.length) {
+      right.appendChild(h('div', { class: 'blk' }, [h('div', { class: 'bh' }, 'Related code'),
+        h('ul', { class: 'ilist rel' }, rel.map(function (r) {
+          var l = loc(r.path, r.line_start, r.line_end);
+          return h('li', null, [h('span', { class: 'ico' }, '↳'), h('div', { style: { 'min-width': '0' } }, [h('span', { class: 'loc2', 'data-tip': l }, l), r.note ? h('div', { class: 'note-c' }, str(r.note)) : null]), C.copyBtn(l, 'Copy')]);
+        }))]));
+    }
+    var refs = strs(x.refs);
+    if (refs.length) right.appendChild(h('div', { class: 'blk' }, [h('div', { class: 'bh' }, 'References'), C.refsEl(refs, kinds)]));
+    right.appendChild(h('div', { class: 'blk meta-line' }, [h('code', null, F.id), h('span', null, catLabel(F.cat)), C.conf(x.confidence),
+      x.candidate ? h('span', { 'data-tip': 'Deterministic hint that led to this finding' }, ['candidate ', h('code', null, str(x.candidate))]) : null,
+      F.loc ? C.copyBtn(F.loc, 'Copy location') : null]));
+    return h('div', { class: 'fd' }, [left, right]);
+  }
+
+  /* grouping */
+  var groups = [];
+  function buildGroups() {
+    listBox.innerHTML = '';
+    groups = [];
+    var defs = [];
+    if (state.group === 'severity') {
+      SEVS.forEach(function (s) { defs.push({ key: s, title: [sevBadge(s)], hint: SEV_HINT[s], items: findings.filter(function (F) { return F.sev === s; }) }); });
+    } else {
+      var paths = {};
+      findings.forEach(function (F) { (paths[F.path] = paths[F.path] || []).push(F); });
+      Object.keys(paths).sort(function (a, b) {
+        var wa = Math.min.apply(null, paths[a].map(function (F) { return sevRank(F.sev); })), wb = Math.min.apply(null, paths[b].map(function (F) { return sevRank(F.sev); }));
+        return wa - wb || paths[b].length - paths[a].length || (a < b ? -1 : 1);
+      }).forEach(function (p) {
+        var fi = fileByPath[p];
+        defs.push({ key: p, title: [p ? C.pathEl(p) : h('span', { class: 'gt' }, 'No file')], hint: fi && fi.role ? fi.role : '', items: paths[p] });
+      });
+    }
+    defs.forEach(function (d) {
+      if (!d.items.length) return;
+      var box = h('div', { class: 'rows' });
+      d.items.forEach(function (F) { box.appendChild(F.row); });
+      var cnt = h('span', { class: 'badge' }, String(d.items.length));
+      var sec = h('section', { class: 'grp' }, [h('div', { class: 'grp-h', onclick: function () { sec.classList.toggle('collapsed'); } },
+        [h('span', { class: 'tw' }, '▾')].concat(d.title, [cnt, d.hint ? h('span', { class: 'gr', 'data-tip': d.hint }, d.hint) : null])), box]);
+      groups.push({ sec: sec, items: d.items, cnt: cnt });
+      listBox.appendChild(sec);
+    });
+  }
+  function setGroup(g) {
+    state.group = g;
+    bSev.setAttribute('aria-pressed', String(g === 'severity'));
+    bFile.setAttribute('aria-pressed', String(g === 'file'));
+    try { localStorage.setItem('cra-review-group', g); } catch (e) { /* ignore */ }
+    buildGroups();
+    applyFilters();
+  }
+
+  /* filtering */
+  function matches(F) {
+    var s = state;
+    if (s.q) {
+      var toks = s.q.toLowerCase().split(/\s+/).filter(Boolean);
+      for (var i = 0; i < toks.length; i++) if (F.search.indexOf(toks[i]) < 0) return false;
+    }
+    if (s.sev && F.sev !== s.sev) return false;
+    if (s.cat && F.cat !== s.cat) return false;
+    if (s.conf === 'verified' && F.inferred) return false;
+    if (s.conf === 'inferred' && !F.inferred) return false;
+    if (s.file && F.path !== s.file) return false;
+    return true;
+  }
+  var visible = [];
+  function applyFilters() {
+    visible = [];
+    findings.forEach(function (F) { var m = matches(F); F.row.hidden = !m; if (m) visible.push(F); });
+    groups.forEach(function (g) {
+      var n = g.items.filter(function (F) { return !F.row.hidden; }).length;
+      g.sec.hidden = n === 0;
+      g.cnt.textContent = n === g.items.length ? String(n) : n + ' / ' + g.items.length;
+    });
+    emptyEl.hidden = visible.length > 0;
+    countEl.textContent = visible.length === findings.length ? CRA.plural(findings.length, 'finding') : visible.length + ' of ' + findings.length + ' findings';
+    resetBtn.hidden = JSON.stringify(pick(state)) === JSON.stringify(DEFAULTS);
+    SEVS.forEach(function (s) { tiles[s].classList.toggle('sel', state.sev === s); });
+    Object.keys(catRows).forEach(function (c) { catRows[c].classList.toggle('sel', state.cat === c); });
+    fileRows.forEach(function (fr) { fr.el.classList.toggle('sel', state.file === fr.path); });
+    if (cur && cur.hidden) setCurrent(null);
+  }
+  function pick(s) { var o = {}; Object.keys(DEFAULTS).forEach(function (k) { o[k] = s[k]; }); return o; }
+  function setFilter(patch, scroll) {
+    Object.keys(patch).forEach(function (k) { state[k] = patch[k]; });
+    search.value = state.q; selSev.value = state.sev; selCat.value = state.cat; selConf.value = state.conf;
+    selFile.value = state.file;
+    if (selFile.value !== state.file) { state.file = ''; }
+    applyFilters();
+    if (scroll) toolbar.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function markdown() {
+    var lines = ['# ' + title + (change.branch ? ' — ' + str(change.branch) : ''), ''];
+    visible.slice().sort(function (a, b) { return sevRank(a.sev) - sevRank(b.sev); }).forEach(function (F) {
+      var where = F.path ? F.path + (F.raw.line_start != null ? ':' + F.raw.line_start : '') : '(no location)';
+      var line = '- [ ] [' + F.sev + '] ' + where + ' — ' + F.title.replace(/\s+/g, ' ');
+      if (F.raw.suggestion) line += ' — ' + str(F.raw.suggestion).replace(/\s+/g, ' ');
+      lines.push(line);
+    });
+    if (!visible.length) lines.push('_No findings._');
+    return lines.join('\n') + '\n';
+  }
+
+  /* keyboard */
+  var cur = null;
+  function setCurrent(row) { if (cur) cur.classList.remove('cur'); cur = row; if (cur) cur.classList.add('cur'); }
+  function visRows() {
+    return C.$$('.fr', listBox).filter(function (r) { var g = r.closest('.grp'); return !r.hidden && g && !g.hidden && !g.classList.contains('collapsed'); });
+  }
+  function move(d) {
+    var list = visRows();
+    if (!list.length) return;
+    var i = cur ? list.indexOf(cur) : -1;
+    i = i < 0 ? (d > 0 ? 0 : list.length - 1) : Math.max(0, Math.min(list.length - 1, i + d));
+    setCurrent(list[i]);
+    list[i]._head.focus({ preventScroll: true });
+    list[i].scrollIntoView({ block: 'nearest' });
+    var tb = toolbar.getBoundingClientRect(), rr = list[i].getBoundingClientRect();
+    if (rr.top < tb.bottom) window.scrollBy(0, rr.top - tb.bottom - 4);
+  }
+  document.addEventListener('keydown', function (e) {
+    var t = e.target, tag = (t.tagName || '').toLowerCase();
+    var typing = tag === 'input' && !/checkbox|radio/.test(t.type) || tag === 'textarea' || tag === 'select' || t.isContentEditable;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (typing) {
+      if (e.key === 'Escape') t.blur();
+      if (e.key === 'Enter' && t === search) { t.blur(); setCurrent(null); move(1); e.preventDefault(); }
+      return;
+    }
+    if (e.key === '/') { e.preventDefault(); search.focus(); search.select(); return; }
+    if (e.key === 'j' || e.key === 'k') { e.preventDefault(); move(e.key === 'j' ? 1 : -1); return; }
+    var onHead = t.classList && t.classList.contains('fh');
+    if ((e.key === 'o' || (e.key === 'Enter' && (onHead || t === document.body))) && cur) { e.preventDefault(); toggle(cur._F); return; }
+    if (e.key === ' ' && onHead) { e.preventDefault(); toggle(t.parentNode._F); }
+  });
+
+  /* ================================================================ */
+  /* per-file view                                                    */
+  /* ================================================================ */
+  var fileRows = [];
+  if (files.length) {
+    var sortedFiles = files.slice().sort(function (a, b) { return a.worst - b.worst || b.list.length - a.list.length || (a.path < b.path ? -1 : 1); });
+    var clean = sortedFiles.filter(function (f) { return !f.list.length; });
+    var dirty = sortedFiles.filter(function (f) { return f.list.length; });
+    var fileRow = function (f) {
+      var c = { blocker: 0, major: 0, minor: 0, info: 0 };
+      f.list.forEach(function (F) { c[F.sev]++; });
+      var tr = h('tr', { class: f.list.length ? 'click' : null, onclick: f.list.length ? function () { setFilter(Object.assign({}, DEFAULTS, { file: state.file === f.path ? '' : f.path }), true); } : null }, [
+        h('td', { class: 'p' }, C.pathEl(f.path)),
+        h('td', { class: 'note-c' }, f.role || ''),
+        h('td', { class: 'c-badge' }, f.list.length ? h('span', { class: 'cnts' }, SEVS.filter(function (s) { return c[s]; }).map(function (s) { return h('span', { class: 'sev ' + s, 'data-tip': c[s] + ' ' + s }, String(c[s])); })) : h('span', { class: 'muted' }, 'clean'))
+      ]);
+      fileRows.push({ el: tr, path: f.path });
+      return tr;
+    };
+    var head = h('thead', null, h('tr', null, [h('th', null, 'File'), h('th', null, 'Role'), h('th', null, 'Findings')]));
+    var tbl = h('table', { class: 'tbl files-tbl stackable' }, [head, h('tbody', null, dirty.map(fileRow))]);
+    var body = [dirty.length ? tbl : h('div', { class: 'empty', style: { padding: '8px 12px' } }, 'No file has findings.')];
+    if (clean.length) {
+      var det = h('details', { class: 'disc', style: { padding: '8px 12px', 'border-top': '1px solid var(--border)' } }, h('summary', { class: 'muted' }, CRA.plural(clean.length, 'reviewed file') + ' without findings'));
+      det.addEventListener('toggle', function () {
+        if (!det.open || det._r) return;
+        det._r = true;
+        det.appendChild(h('table', { class: 'tbl files-tbl stackable' }, h('tbody', null, clean.map(fileRow))));
+      });
+      body.push(det);
+    }
+    app.appendChild(h('div', { class: 'section-title' }, [h('h2', null, 'Files'), h('span', { class: 'count' }, CRA.plural(dirty.length, 'file') + ' with findings · click to filter')]));
+    app.appendChild(h('div', { class: 'card' }, body));
+  }
+
+  app.appendChild(h('div', { class: 'footer' }, ['Generated by code-review-assistant', R.report_dir ? [' · ', h('code', null, str(R.report_dir))] : null,
+    R.schema_version != null ? ' · schema v' + str(R.schema_version) : null]));
+
+  /* go */
+  var g0 = 'severity';
+  try { var sg = localStorage.getItem('cra-review-group'); if (sg === 'file' || sg === 'severity') g0 = sg; } catch (e) { /* ignore */ }
+  setGroup(g0);
+})();
+</script>
+</body>
+</html>

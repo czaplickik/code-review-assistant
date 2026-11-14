@@ -1,0 +1,117 @@
+{
+  "mode": "ai+human-critical-paths",
+  "mode_alternatives": [
+    "human-only"
+  ],
+  "top": {
+    "n": 5,
+    "files": [
+      "src/main/java/com/example/shop/order/service/RefundService.java",
+      "src/main/java/com/example/shop/order/controller/RefundController.java",
+      "src/main/java/com/example/shop/common/Money.java",
+      "src/main/resources/db/migration/V2__order_discounts_and_payment.sql",
+      "src/main/java/com/example/shop/order/event/OrderStatusChangedEvent.java"
+    ]
+  },
+  "must_detect": [
+    {
+      "path": "src/main/java/com/example/shop/order/service/RefundService.java",
+      "dimension": "core_logic",
+      "min_points": 3,
+      "note": "167-line refund() method; pro-rata by quantity instead of value"
+    },
+    {
+      "path": "src/main/java/com/example/shop/order/service/RefundService.java",
+      "dimension": "data_integrity",
+      "min_points": 4,
+      "note": "payment gateway refund inside @Transactional before persisting"
+    },
+    {
+      "path": "src/main/java/com/example/shop/order/service/RefundService.java",
+      "dimension": "conventions",
+      "min_points": 1,
+      "note": "@Autowired field injection, throw new RuntimeException"
+    },
+    {
+      "path": "src/main/java/com/example/shop/order/controller/RefundController.java",
+      "dimension": "security",
+      "min_points": 4,
+      "note": "hasRole('USER') without ownership check on a money-moving endpoint"
+    },
+    {
+      "path": "src/main/java/com/example/shop/order/controller/RefundController.java",
+      "dimension": [
+        "conventions",
+        "architecture"
+      ],
+      "min_points": 1,
+      "note": "controller returns Refund JPA entity"
+    },
+    {
+      "path": "src/main/java/com/example/shop/common/Money.java",
+      "dimension": "core_logic",
+      "min_points": 3,
+      "note": "rounding HALF_EVEN -> HALF_UP on high fan-in value object"
+    },
+    {
+      "path": "src/main/resources/db/migration/V2__order_discounts_and_payment.sql",
+      "dimension": "data_integrity",
+      "min_points": 4,
+      "note": "already-applied migration edited"
+    },
+    {
+      "path": "src/main/java/com/example/shop/order/event/OrderStatusChangedEvent.java",
+      "dimension": "contracts",
+      "min_points": 3,
+      "note": "toStatus renamed to status, SCHEMA_VERSION still 1"
+    },
+    {
+      "path": "src/main/java/com/example/shop/order/dto/OrderDto.java",
+      "dimension": "contracts",
+      "min_points": 3,
+      "note": "JSON field total renamed to totalAmount"
+    },
+    {
+      "path": "src/test/java/com/example/shop/order/service/OrderServiceTest.java",
+      "dimension": "tests",
+      "min_points": 2,
+      "note": "assertions removed, @Disabled flaky, expectations changed"
+    },
+    {
+      "path": "src/main/java/com/example/shop/payment/PaymentClient.java",
+      "dimension": "integration",
+      "min_points": 1,
+      "note": "new gateway refund call without 4xx/recovery handling"
+    }
+  ],
+  "traps": {
+    "n": 10,
+    "files": [
+      "src/main/java/com/example/shop/product/controller/ProductController.java",
+      "src/main/java/com/example/shop/order/domain/RefundLine.java",
+      "src/main/java/com/example/shop/order/dto/RefundRequest.java",
+      "src/main/java/com/example/shop/order/domain/RefundStatus.java",
+      "src/main/java/com/example/shop/order/repository/RefundRepository.java",
+      "src/main/java/com/example/shop/order/service/OrderMapper.java"
+    ]
+  },
+  "plan_drift": {
+    "unplanned": [
+      "src/main/java/com/example/shop/security/SecurityConfig.java",
+      "src/main/java/com/example/shop/product/controller/ProductController.java",
+      "src/main/resources/db/migration/V2__order_discounts_and_payment.sql",
+      "src/test/java/com/example/shop/order/service/OrderServiceTest.java",
+      "src/test/java/com/example/shop/order/controller/OrderControllerTest.java"
+    ],
+    "planned_not_changed": [
+      "src/main/java/com/example/shop/order/dto/RefundDto.java",
+      "src/main/java/com/example/shop/product/service/ProductPriceCache.java",
+      "src/main/java/com/example/shop/config/CacheConfig.java",
+      "src/main/java/com/example/shop/config/KafkaConfig.java",
+      "src/main/java/com/example/shop/product/service/ProductService.java",
+      "pom.xml",
+      "src/test/java/com/example/shop/order/controller/RefundControllerTest.java",
+      "src/test/java/com/example/shop/payment/PaymentClientTest.java"
+    ]
+  }
+}

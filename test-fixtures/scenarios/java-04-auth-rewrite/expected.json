@@ -1,0 +1,73 @@
+{
+  "mode": "human-only",
+  "mode_alternatives": [
+    "ai+human-critical-paths"
+  ],
+  "top": {
+    "n": 5,
+    "files": [
+      "src/main/java/com/example/shop/security/JwtAuthFilter.java",
+      "src/main/resources/db/migration/V3__normalize_user_roles.sql",
+      "src/main/java/com/example/shop/security/SecurityConfig.java",
+      "src/main/java/com/example/shop/security/PasswordConfig.java",
+      "src/main/java/com/example/shop/security/RefreshTokenService.java"
+    ]
+  },
+  "must_detect": [
+    {
+      "path": "src/main/java/com/example/shop/security/JwtAuthFilter.java",
+      "dimension": "security",
+      "min_points": 5,
+      "note": "expired tokens accepted when remember-me claim is set"
+    },
+    {
+      "path": "src/main/java/com/example/shop/security/SecurityConfig.java",
+      "dimension": "security",
+      "min_points": 4,
+      "note": "permitAll widened to GET /api/orders/**"
+    },
+    {
+      "path": "src/main/java/com/example/shop/security/PasswordConfig.java",
+      "dimension": "security",
+      "min_points": 3,
+      "note": "BCrypt strength 12 -> 4 in main config"
+    },
+    {
+      "path": "src/main/resources/db/migration/V3__normalize_user_roles.sql",
+      "dimension": "data_integrity",
+      "min_points": 4,
+      "note": "bulk UPDATE of user roles, no backup"
+    },
+    {
+      "path": "src/main/resources/db/migration/V3__normalize_user_roles.sql",
+      "dimension": "security",
+      "min_points": 3,
+      "note": "grants ADMIN by e-mail domain"
+    },
+    {
+      "path": "src/main/java/com/example/shop/security/RefreshTokenService.java",
+      "dimension": "concurrency",
+      "min_points": 3,
+      "note": "static non-thread-safe HashMap token store, check-then-act rotate"
+    },
+    {
+      "path": "src/main/java/com/example/shop/security/RefreshTokenService.java",
+      "dimension": "security",
+      "min_points": 2,
+      "note": "refresh tokens stored raw in process memory"
+    },
+    {
+      "path": "src/main/java/com/example/shop/security/AuthController.java",
+      "dimension": "security",
+      "min_points": 2,
+      "note": "90-day token in cookie without Secure/SameSite, CSRF disabled"
+    }
+  ],
+  "traps": {
+    "n": 3,
+    "files": [
+      "src/main/java/com/example/shop/security/JwtProperties.java",
+      "src/main/resources/application.yml"
+    ]
+  }
+}

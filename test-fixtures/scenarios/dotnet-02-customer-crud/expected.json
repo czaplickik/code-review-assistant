@@ -1,0 +1,20 @@
+{
+  "mode": "ai-review-only",
+  "top": {"n": 5, "files": [
+    "src/Shop.Application/Customers/CustomerNoteService.cs",
+    "src/Shop.Infrastructure/Persistence/Migrations/20261105120000_AddCustomerNotes.cs"
+  ]},
+  "must_detect": [
+    {"path": "src/Shop.Infrastructure/Persistence/Migrations/20261105120000_AddCustomerNotes.cs", "dimension": "data_integrity", "min_points": 2,
+     "note": "new migration: additive CustomerNotes table, FK to Customers with cascade delete"},
+    {"path": "src/Shop.Application/Customers/CustomerNoteValidators.cs", "dimension": "data_integrity", "min_points": 1,
+     "note": "validator allows 4000 chars, column is nvarchar(2000) (CustomerNote.MaxBodyLength)"},
+    {"path": "src/Shop.Application/Customers/CustomerNoteService.cs", "dimension": "conventions", "min_points": 1,
+     "note": "DeleteAsync passes CancellationToken.None to SaveChangesAsync instead of the token"}
+  ],
+  "traps": {"n": 10, "files": [
+    "src/Shop.Infrastructure/Persistence/Migrations/20261105120000_AddCustomerNotes.Designer.cs",
+    "src/Shop.Infrastructure/Persistence/Migrations/ShopDbContextModelSnapshot.cs",
+    "src/Shop.Application/Customers/CustomerNoteDtos.cs"
+  ]}
+}

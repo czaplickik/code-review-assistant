@@ -1,0 +1,13 @@
+{
+  "mode": "build+tests+static",
+  "top": {"n": 5, "files": ["tests/Shop.Tests/Domain/InvoiceTests.cs"]},
+  "must_detect": [
+    {"path": "tests/Shop.Tests/Domain/InvoiceTests.cs", "dimension": "tests", "min_points": 1,
+     "note": "expected value corrected 45.99 -> 44.99 (2 x 19.99 + 5.01); a correction, not a weakening"}
+  ],
+  "traps": {"n": 3, "files": [
+    "src/Shop.Domain/Common/Money.cs",
+    "src/Shop.Api/Controllers/InvoicesController.cs",
+    "src/Shop.Infrastructure/Payments/PaymentGatewayClient.cs"
+  ]}
+}

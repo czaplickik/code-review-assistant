@@ -1,0 +1,309 @@
+# .NET deterministic rules. Format: see rulesets/_base/signals.yaml.
+rules:
+  # ---------------------------------------------------------------- security
+  - id: dotnet.security.allow-anonymous-added
+    dimension: security
+    points: 5
+    critical: true
+    title: '[AllowAnonymous] added'
+    reason: An endpoint is now reachable without authentication.
+    match: added
+    pattern: '\[AllowAnonymous\b|\.AllowAnonymous\(\)'
+
+  - id: dotnet.security.authorize-removed
+    dimension: security
+    points: 4
+    critical: true
+    title: Authorization attribute / policy removed
+    reason: '[Authorize] or RequireAuthorization removed — the endpoint may lose its check.'
+    match: removed
+    pattern: '\[Authorize\b|\.RequireAuthorization\(|AuthorizeAsync\('
+
+  - id: dotnet.security.ownership-check-removed
+    dimension: security
+    points: 4
+    critical: true
+    title: Ownership / access check removed
+    reason: A line performing an ownership or access check was removed.
+    match: removed
+    pattern: '(?i)(Forbid\(\)|ForbidResult|UnauthorizedAccessException|Forbidden\w*Exception|owner\w*\s*[!=]=|owner\w*\.Equals\(|IsOwner|EnsureOwner|AuthorizeAsync\(.*Owner)'
+
+  - id: dotnet.security.authorize-changed
+    dimension: security
+    points: 3
+    points_new_file: 1
+    title: Authorization rule added or changed
+    reason: '[Authorize] roles/policies or authorization handler logic changed.'
+    match: added
+    pattern: '\[Authorize\b|\.RequireAuthorization\(|AddPolicy\(|RequireRole\(|RequireClaim\(|AuthorizationHandler<|context\.Succeed\(|context\.Fail\('
+
+  - id: dotnet.security.auth-setup
+    dimension: security
+    points: 4
+    critical: true
+    title: Authentication / token validation setup changed
+    reason: JWT bearer / cookie options or TokenValidationParameters changed.
+    match: changed
+    pattern: '(TokenValidationParameters|Validate(Issuer|Audience|Lifetime|IssuerSigningKey)\s*=|RequireHttpsMetadata|AddJwtBearer|AddAuthentication|ClockSkew|IssuerSigningKey|RequireSignedTokens)'
+
+  - id: dotnet.security.webhook-signature
+    dimension: security
+    points: 4
+    title: Webhook / signature verification changed
+    reason: Signature or HMAC verification code changed or removed.
+    match: changed
+    pattern: '(?i)(signature|hmac|X-Hub-Signature|Stripe-Signature|VerifySignature|ComputeHash)'
+
+  - id: dotnet.security.raw-sql
+    dimension: security
+    points: 4
+    title: Raw SQL with interpolation or concatenation
+    reason: FromSqlRaw/ExecuteSqlRaw built from variables — injection risk.
+    match: added
+    pattern: '(FromSqlRaw|ExecuteSqlRaw|ExecuteSqlRawAsync|SqlCommand)\s*\(\s*(\$"|.*"\s*\+)'
+
+  - id: dotnet.security.cors
+    dimension: security
+    points: 3
+    points_new_file: 2
+    title: CORS policy changed
+    reason: Allowed origins / credentials changed.
+    match: changed
+    pattern: '(AllowAnyOrigin|WithOrigins|AllowCredentials|SetIsOriginAllowed|AddCors|UseCors)'
+
+  # ---------------------------------------------------------------- data integrity
+  - id: dotnet.data.transaction
+    dimension: data_integrity
+    points: 3
+    points_new_file: 2
+    title: Transaction handling changed
+    reason: BeginTransaction / TransactionScope / Commit changed.
+    match: changed
+    pattern: '(BeginTransaction|TransactionScope|CommitAsync|Commit\(\)|RollbackAsync|Rollback\(\)|IDbContextTransaction|UseTransaction)'
+
+  - id: dotnet.data.save-changes
+    dimension: data_integrity
+    points: 2
+    points_new_file: 1
+    title: SaveChanges call added or moved
+    reason: Unit-of-work boundaries changed — check atomicity of multi-aggregate writes.
+    match: changed
+    pattern: '\bSaveChanges(Async)?\s*\('
+
+  - id: dotnet.data.migration-ops
+    dimension: data_integrity
+    points: 4
+    title: Destructive EF migration operation
+    reason: DropColumn / DropTable / AlterColumn / raw Sql in a migration may lose data.
+    match: added
+    path: ['**/Migrations/**']
+    pattern: '\.(DropColumn|DropTable|DropIndex|DropForeignKey|AlterColumn|RenameColumn|RenameTable|Sql)\s*\('
+    exclude_path: ['**/*ModelSnapshot.cs', '**/*.Designer.cs']
+    # Down() reverses the migration; drops there are expected
+    ignore_after: 'override\s+void\s+Down\s*\('
+
+  - id: dotnet.data.model-config
+    dimension: data_integrity
+    points: 2
+    points_new_file: 1
+    title: EF model configuration changed
+    reason: Keys, relationships, cascade or column mapping changed — must match a migration.
+    match: changed
+    pattern: '(HasKey|HasOne|HasMany|WithMany|WithOne|OnDelete|DeleteBehavior\.|HasConversion|HasPrecision|IsRequired|HasMaxLength|IsConcurrencyToken|IsRowVersion|ToTable|HasColumnName)\s*\('
+    exclude_path: ['**/*ModelSnapshot.cs', '**/*.Designer.cs']
+
+  - id: dotnet.data.money-rounding
+    dimension: data_integrity
+    points: 3
+    points_new_file: 2
+    title: Monetary rounding changed
+    reason: Math.Round / MidpointRounding / decimal precision changed.
+    match: changed
+    pattern: '(Math\.Round|decimal\.Round|MidpointRounding|HasPrecision|Math\.Truncate)'
+    tests: exclude
+
+  # ---------------------------------------------------------------- contracts
+  - id: dotnet.contracts.routes
+    dimension: contracts
+    points: 2
+    points_new_file: 1
+    title: Endpoint route / verb changed
+    reason: Route templates, HTTP verbs or model binding changed.
+    match: changed
+    pattern: '\[(Http(Get|Post|Put|Patch|Delete)|Route|FromBody|FromQuery|FromRoute|ProducesResponseType)\b|\.Map(Get|Post|Put|Patch|Delete|Group)\('
+
+  - id: dotnet.contracts.serialization
+    dimension: contracts
+    points: 3
+    points_new_file: 1
+    title: Serialization contract changed
+    reason: JSON attributes or serializer options change the wire format.
+    match: changed
+    pattern: '\[(JsonPropertyName|JsonIgnore|JsonConverter|JsonPolymorphic|JsonDerivedType|DataMember|JsonProperty)\b|JsonSerializerOptions|PropertyNamingPolicy'
+
+  # ---------------------------------------------------------------- integration
+  - id: dotnet.integration.new-httpclient
+    dimension: integration
+    points: 4
+    title: HttpClient instantiated directly
+    reason: new HttpClient() bypasses IHttpClientFactory (socket exhaustion, no configured timeout/retry).
+    match: added
+    pattern: 'new\s+HttpClient\s*\('
+
+  - id: dotnet.integration.http-client
+    dimension: integration
+    points: 3
+    points_new_file: 2
+    title: Outbound HTTP call changed
+    reason: Typed client / HttpClient usage changed — check timeouts, retries, error mapping.
+    match: changed
+    pattern: '(AddHttpClient|HttpClient\b|SendAsync\(|GetFromJsonAsync|PostAsJsonAsync|EnsureSuccessStatusCode)'
+
+  - id: dotnet.integration.resilience
+    dimension: integration
+    points: 3
+    points_new_file: 2
+    title: Retry / timeout / circuit breaker changed
+    reason: Polly / resilience pipeline or timeout settings changed.
+    match: changed
+    pattern: '(?i)(AddPolicyHandler|AddResilienceHandler|AddStandardResilienceHandler|WaitAndRetry|CircuitBreaker|Timeout\s*=|TimeSpan\.From\w+\(.*timeout|RetryCount)'
+
+  - id: dotnet.integration.messaging
+    dimension: integration
+    points: 3
+    points_new_file: 2
+    title: Messaging publish / consume changed
+    reason: Integration events, publishers or consumers changed.
+    match: changed
+    pattern: '(IEventPublisher|PublishAsync|IConsumer<|IPublishEndpoint|ServiceBusSender|ServiceBusProcessor|IMessageHandler|ITopicProducer|ProduceAsync)'
+
+  # ---------------------------------------------------------------- concurrency
+  - id: dotnet.concurrency.sync-over-async
+    dimension: concurrency
+    points: 3
+    title: Sync over async
+    reason: .Result / .Wait() / GetAwaiter().GetResult() can deadlock and block thread-pool threads.
+    match: added
+    pattern: '\.Result\b(?!\s*=)|\.Wait\(\s*\)|GetAwaiter\(\)\.GetResult\(\)'
+
+  - id: dotnet.concurrency.static-state
+    dimension: concurrency
+    points: 3
+    title: Shared mutable static state
+    reason: Static collection or field mutated across requests / background services.
+    match: added
+    pattern: 'static\s+(readonly\s+)?(Dictionary|List|HashSet|ConcurrentDictionary|IDictionary|IList)<|private\s+static\s+(?!readonly|class|async|void|\w+\s*\()\w[\w<>,\s]*\s+\w+\s*(=|;)'
+
+  - id: dotnet.concurrency.hosted-service
+    dimension: concurrency
+    points: 3
+    points_new_file: 2
+    title: Background / hosted service changed
+    reason: BackgroundService / IHostedService lifecycle, scoping and cancellation.
+    match: changed
+    pattern: '(BackgroundService|IHostedService|ExecuteAsync\s*\(\s*CancellationToken|PeriodicTimer|AddHostedService|IServiceScopeFactory|CreateScope\()'
+
+  - id: dotnet.concurrency.async-void
+    dimension: concurrency
+    points: 3
+    title: async void method
+    reason: Exceptions from async void crash the process and cannot be awaited.
+    match: added
+    pattern: '\basync\s+void\s+(?!On\w+\()'
+
+  # ---------------------------------------------------------------- config / infra
+  - id: dotnet.config.appsettings
+    dimension: config_infra
+    points: 2
+    title: Application settings changed
+    reason: appsettings*.json changes runtime behaviour per environment.
+    match: file
+    path: ['**/appsettings*.json', '**/launchSettings.json']
+    tests: exclude
+
+  - id: dotnet.config.di-pipeline
+    dimension: config_infra
+    points: 2
+    title: DI registration / middleware pipeline changed
+    reason: Service lifetimes, registrations or middleware order changed.
+    match: changed
+    path: ['**/Program.cs', '**/Startup.cs', '**/*ServiceCollectionExtensions.cs', '**/DependencyInjection.cs']
+    pattern: '(Add(Singleton|Scoped|Transient)|builder\.Services|app\.Use\w+|app\.Map\w*|Configure<)'
+
+  - id: dotnet.config.lifetime-singleton
+    dimension: concurrency
+    points: 3
+    title: Singleton registration added
+    reason: Singletons capturing scoped services (DbContext) or holding state are a frequent defect.
+    match: added
+    pattern: 'AddSingleton\s*<'
+
+  - id: dotnet.config.project-deps
+    dimension: config_infra
+    points: 2
+    title: Project / package references changed
+    reason: Package versions or target framework changed.
+    match: file
+    path: ['**/*.csproj', '**/Directory.Packages.props', '**/Directory.Build.props', '**/global.json']
+
+  # ---------------------------------------------------------------- error handling / conventions
+  - id: dotnet.errors.generic-exception
+    dimension: conventions
+    points: 2
+    title: Generic exception thrown
+    reason: throw new Exception / InvalidOperationException instead of the project's domain exceptions.
+    match: added
+    pattern: 'throw\s+new\s+(Exception|ApplicationException|InvalidOperationException|SystemException)\s*\('
+
+  - id: dotnet.errors.swallowed
+    dimension: error_handling
+    points: 2
+    title: Broad or empty catch
+    reason: catch (Exception) or empty catch — failures may become silent.
+    match: added
+    pattern: 'catch\s*(\(\s*Exception(\s+\w+)?\s*\))?\s*\{\s*\}|catch\s*\(\s*Exception(\s+\w+)?\s*\)'
+
+  - id: dotnet.errors.problem-details
+    dimension: error_handling
+    points: 3
+    points_new_file: 2
+    title: Global exception mapping changed
+    reason: Exception middleware / ProblemDetails mapping affects every endpoint.
+    match: changed
+    pattern: '(IExceptionHandler|UseExceptionHandler|ProblemDetails|AddProblemDetails|ExceptionFilter|IExceptionFilter)'
+
+  - id: dotnet.conventions.service-locator
+    dimension: conventions
+    points: 2
+    title: Service locator
+    reason: IServiceProvider.GetService / GetRequiredService used outside composition root.
+    match: added
+    pattern: '\.(GetService|GetRequiredService)\s*<'
+    not_pattern: 'CreateScope|scope\.ServiceProvider'
+
+  - id: dotnet.architecture.dbcontext-in-controller
+    dimension: architecture
+    points: 3
+    title: Controller uses DbContext directly
+    reason: Persistence accessed from the API layer bypasses the application layer.
+    match: added
+    path: ['**/*Controller.cs', '**/Endpoints/**']
+    pattern: '\b\w*DbContext\b'
+
+  - id: dotnet.conventions.missing-cancellation
+    dimension: conventions
+    points: 1
+    title: Async method without CancellationToken
+    reason: Project conventions usually require passing CancellationToken through.
+    match: added
+    pattern: 'public\s+(async\s+)?Task(<[^>]+>)?\s+\w+Async\s*\((?![^)]*CancellationToken)[^)]*\)'
+
+  # ---------------------------------------------------------------- performance
+  - id: dotnet.performance.unbounded-query
+    dimension: performance
+    points: 2
+    title: Possibly unbounded query
+    reason: ToListAsync without Take/paging loads all rows.
+    match: added
+    pattern: '\.ToList(Async)?\s*\('
+    not_pattern: '\.Take\(|\.Skip\('

@@ -1,0 +1,51 @@
+{
+  "mode": "ai+human-critical-paths",
+  "top": {
+    "n": 5,
+    "files": [
+      "src/main/java/com/example/shop/catalog/wishlist/WishlistEntryService.java",
+      "src/main/java/com/example/shop/catalog/bundle/BundleService.java",
+      "src/main/java/com/example/shop/catalog/promotion/PromotionCampaignService.java"
+    ]
+  },
+  "must_detect": [
+    {
+      "path": "src/main/java/com/example/shop/catalog/wishlist/WishlistEntryService.java",
+      "dimension": "security",
+      "min_points": 4,
+      "note": "ownership check removed from delete (IDOR)"
+    },
+    {
+      "path": "src/main/java/com/example/shop/catalog/bundle/BundleService.java",
+      "dimension": "data_integrity",
+      "min_points": 3,
+      "note": "@Transactional removed from multi-write replaceItems"
+    },
+    {
+      "path": "src/main/java/com/example/shop/catalog/promotion/PromotionCampaignService.java",
+      "dimension": "core_logic",
+      "min_points": 3,
+      "note": "MAX_DISCOUNT_PERCENT 30 -> 50, contradicts BR-7"
+    },
+    {
+      "path": "pom.xml",
+      "dimension": "config_infra",
+      "min_points": 1,
+      "note": "Lombok dependency + annotation processor"
+    }
+  ],
+  "traps": {
+    "n": 10,
+    "files": [
+      "src/main/java/com/example/shop/order/service/OrderService.java",
+      "src/main/java/com/example/shop/payment/PaymentClient.java",
+      "src/main/java/com/example/shop/security/JwtService.java",
+      "src/main/java/com/example/shop/security/RefreshTokenService.java",
+      "src/main/java/com/example/shop/common/support/Slugs.java",
+      "src/main/java/com/example/shop/common/support/Texts.java",
+      "src/main/java/com/example/shop/catalog/wishlist/WishlistService.java",
+      "src/main/java/com/example/shop/catalog/review/ProductReviewService.java",
+      "src/main/java/com/example/shop/catalog/inventory/StockLevelService.java"
+    ]
+  }
+}

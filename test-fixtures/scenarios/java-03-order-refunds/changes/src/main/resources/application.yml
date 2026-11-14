@@ -1,0 +1,73 @@
+spring:
+  application:
+    name: shop
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:shop}
+    username: ${DB_USER:shop}
+    password: ${DB_PASSWORD:shop}
+    hikari:
+      maximum-pool-size: 20
+      connection-timeout: 3000
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.jdbc.time_zone: UTC
+      hibernate.default_batch_fetch_size: 50
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  data:
+    web:
+      pageable:
+        max-page-size: 100
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    producer:
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        enable.idempotence: true
+        spring.json.add.type.headers: false
+
+shop:
+  kafka:
+    topics:
+      order-placed: shop.order.placed.v1
+      order-status-changed: shop.order.status-changed.v1
+      order-refunded: shop.order.refunded.v1
+  orders:
+    currency: EUR
+    volume-discount-threshold: 500.00
+    volume-discount-percent: 5
+    discount-codes:
+      WELCOME10: 10
+      SPRING15: 15
+      VIP25: 25
+  security:
+    jwt:
+      issuer: shop-api
+      secret: ${JWT_SECRET}
+      access-token-ttl: 15m
+      refresh-token-ttl: 14d
+  payment:
+    base-url: ${PAYMENT_BASE_URL:https://api.sandbox.payments.example.com}
+    api-key: ${PAYMENT_API_KEY}
+    connect-timeout: 2s
+    read-timeout: 5s
+    retry:
+      max-attempts: 3
+      initial-backoff: 200ms
+      multiplier: 2.0
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true

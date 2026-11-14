@@ -1,0 +1,70 @@
+id: java-spring
+description: Java / Kotlin with Spring Boot, JPA, Flyway/Liquibase, Kafka/RabbitMQ
+project_markers: [pom.xml, build.gradle, build.gradle.kts]
+file_patterns:
+  - '**/*.java'
+  - '**/*.kt'
+  - '**/pom.xml'
+  - '**/build.gradle'
+  - '**/build.gradle.kts'
+  - '**/settings.gradle*'
+  - '**/src/main/resources/**'
+  - '**/src/test/resources/**'
+  - '**/db/migration/**/*.sql'
+source_patterns: ['**/*.java', '**/*.kt']
+reference_globs: ['**/*.java', '**/*.kt', '**/*.xml', '**/*.yml', '**/*.yaml', '**/*.properties']
+test_patterns:
+  - '**/src/test/**'
+  - '**/src/it/**'
+  - '**/*Test.java'
+  - '**/*Tests.java'
+  - '**/*IT.java'
+  - '**/*Test.kt'
+migration_patterns:
+  - '**/db/migration/**'
+  - '**/db/changelog/**'
+  - '**/flyway/**'
+  - '**/liquibase/**'
+exclude:
+  - '**/target/**'
+  - '**/build/**'
+  - '**/.gradle/**'
+  - '**/out/**'
+  - '**/mvnw'
+  - '**/mvnw.cmd'
+  - '**/gradlew'
+  - '**/gradlew.bat'
+  - '**/.mvn/**'
+  - '**/gradle/wrapper/**'
+import_patterns:
+  - '^\s*import\s+(static\s+)?[\w.*]+;?\s*$'
+  - '^\s*package\s+[\w.]+;?\s*$'
+comment_patterns:
+  - '^\s*(//|/\*|\*|\*/)'
+symbol_patterns:
+  - '^\s*(?:public\s+|protected\s+|private\s+)?(?:abstract\s+|final\s+|sealed\s+|static\s+)*(?:class|interface|enum|record|@interface)\s+([A-Z]\w*)'
+  - '^\s*(?:public\s+|internal\s+|private\s+)?(?:data\s+|sealed\s+|abstract\s+|open\s+)*(?:class|interface|object)\s+([A-Z]\w*)'
+assertion_patterns:
+  - '\bassert\w*\s*\('
+  - '\bassertThat\s*\('
+  - '\.is(EqualTo|NotNull|Null|True|False|Empty|NotEmpty|InstanceOf|GreaterThan|LessThan)\w*\s*\('
+  - '\.has\w+\s*\('
+  - '\.contains\w*\s*\('
+  - '\bverify\s*\('
+  - '\.andExpect\s*\('
+  - '\bassertThrows\s*\('
+  - '\bexpect\w*\s*\('
+skip_patterns:
+  - '@Disabled\b'
+  - '@Ignore\b'
+  - '\bassumeTrue\s*\(\s*false'
+  - '\bAssumptions\.abort'
+module_patterns:
+  # src/main/java/com/example/shop/order/... -> order ; multi-module: <module>/src/... -> <module>/order
+  - '^(?:([^/]+)/)?src/(?:main|test)/(?:java|kotlin)/(?:[a-z0-9_]+/){3}([a-z0-9_]+)/'
+  - '^(?:([^/]+)/)?src/(?:main|test)/(resources)/'
+test_name_map:
+  - from: '^(.+)\.java$'
+    to: ['\1Test.java', '\1Tests.java', '\1IT.java', '\1IntegrationTest.java']
+  - from: '^(.+)\.kt$'
+    to: ['\1Test.kt', '\1Tests.kt', '\1IT.kt']

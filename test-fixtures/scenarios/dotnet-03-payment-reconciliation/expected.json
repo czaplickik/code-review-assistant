@@ -1,0 +1,75 @@
+{
+  "mode": "ai+human-critical-paths",
+  "mode_alternatives": ["human-only"],
+  "top": {"n": 5, "files": [
+    "src/Shop.Application/Reconciliation/ReconcileBankTransactionCommand.cs",
+    "src/Shop.Api/Controllers/BankWebhookController.cs",
+    "src/Shop.Domain/Common/Money.cs",
+    "src/Shop.Infrastructure/Persistence/Migrations/20260415093000_AddPaymentReference.cs",
+    "src/Shop.Infrastructure/Persistence/Migrations/20261112143000_AddBankReconciliation.cs"
+  ]},
+  "must_detect": [
+    {"path": "src/Shop.Application/Reconciliation/ReconcileBankTransactionCommand.cs", "dimension": "core_logic", "min_points": 3,
+     "note": "new ~205-line matching handler; tolerance compares |difference| to TolerancePercent as an absolute amount, cap unused"},
+    {"path": "src/Shop.Application/Reconciliation/ReconcileBankTransactionCommand.cs", "dimension": "data_integrity", "min_points": 3,
+     "note": "two SaveChangesAsync (payment+transaction, then invoice+outbox) without ExecuteInTransactionAsync"},
+    {"path": "src/Shop.Application/Reconciliation/ReconcileBankTransactionCommand.cs", "dimension": "conventions", "min_points": 2,
+     "note": "service locator IServiceProvider.GetService<IEventPublisher>() in a handler; raw System.Exception"},
+    {"path": "src/Shop.Application/Reconciliation/ReconcileBankTransactionCommand.cs", "dimension": "error_handling", "min_points": 2,
+     "note": "throw new Exception on duplicate delivery -> unmapped 500, webhook batch retried, worker run aborted"},
+    {"path": "src/Shop.Application/Reconciliation/ReconcileBankTransactionCommand.cs", "dimension": "tests", "min_points": 2,
+     "note": "large new handler covered by a single happy-path test; no tolerance/partial/currency/duplicate tests"},
+    {"path": "src/Shop.Api/Controllers/BankWebhookController.cs", "dimension": "security", "min_points": 5,
+     "note": "[AllowAnonymous] endpoint that creates payments, no HMAC signature/timestamp verification"},
+    {"path": "src/Shop.Api/Controllers/InvoicesController.cs", "dimension": "security", "min_points": 4,
+     "note": "InvoiceOwner resource authorization removed from GET /api/invoices/{id}/payments (IDOR)"},
+    {"path": "src/Shop.Infrastructure/Persistence/Migrations/20260415093000_AddPaymentReference.cs", "dimension": "data_integrity", "min_points": 4,
+     "note": "already-applied migration edited to add Payments.ReconciliationStatus"},
+    {"path": "src/Shop.Infrastructure/Persistence/Migrations/20261112143000_AddBankReconciliation.cs", "dimension": "data_integrity", "min_points": 4,
+     "note": "DropColumn Invoices.PaymentNote (legacy audit data, not restorable by Down)"},
+    {"path": "src/Shop.Domain/Common/Money.cs", "dimension": "core_logic", "min_points": 3,
+     "note": "rounding ToEven -> AwayFromZero and constructor now rounds; high fan-in value object, stale doc"},
+    {"path": "src/Shop.Application/Events/InvoicePaid.cs", "dimension": "contracts", "min_points": 4,
+     "note": "PaymentReference removed from published v1 event without version bump"},
+    {"path": "src/Shop.Application/Invoices/InvoiceDtos.cs", "dimension": "contracts", "min_points": 3,
+     "note": "public InvoiceDto.AmountDue renamed to OutstandingAmount"},
+    {"path": "src/Shop.Application/Reconciliation/ReconciliationCache.cs", "dimension": "concurrency", "min_points": 3,
+     "note": "static Dictionary in a singleton mutated from the hosted service and requests; .Result on async lookup"},
+    {"path": "src/Shop.Infrastructure/Banking/BankApiClient.cs", "dimension": "integration", "min_points": 3,
+     "note": "new HttpClient() in a transient service, no timeout/retry, pagination ignored"},
+    {"path": "src/Shop.Infrastructure/BackgroundJobs/BankStatementImportWorker.cs", "dimension": "performance", "min_points": 2,
+     "note": "ListAsync(status, 0, int.MaxValue) loads all open invoices with lines every run"},
+    {"path": "src/Shop.Api/Controllers/ReconciliationController.cs", "dimension": "conventions", "min_points": 2,
+     "note": "controller injects ShopDbContext and returns List<BankTransaction> entities, unpaged"},
+    {"path": "src/Shop.Infrastructure/DependencyInjection.cs", "dimension": "config_infra", "min_points": 2,
+     "note": "AddTransient bank client (not AddHttpClient), singleton cache, new hosted service"},
+    {"path": "tests/Shop.Tests/Application/ReconcileSettlementHandlerTests.cs", "dimension": "tests", "min_points": 3,
+     "note": "[Fact(Skip = \"flaky\")] on existing reconciliation test; exact Difference assertion loosened to NotBeEmpty()"},
+    {"path": "tests/Shop.Tests/Application/PayInvoiceCommandHandlerTests.cs", "dimension": "tests", "min_points": 2,
+     "note": "PaymentReference assertion removed to follow the event contract break"}
+  ],
+  "traps": {"n": 10, "files": [
+    "src/Shop.Application/Reconciliation/ReconciliationResultDto.cs",
+    "src/Shop.Api/Controllers/CustomersController.cs",
+    "src/Shop.Application/Abstractions/IInvoiceRepository.cs",
+    "src/Shop.Infrastructure/Persistence/Migrations/20261112143000_AddBankReconciliation.Designer.cs",
+    "src/Shop.Infrastructure/Persistence/Migrations/ShopDbContextModelSnapshot.cs",
+    "docs/superpowers/specs/2026-11-11-payment-reconciliation-design.md",
+    "docs/superpowers/plans/2026-11-11-payment-reconciliation.md",
+    "src/Shop.Domain/Payments/ReconciliationStatus.cs",
+    "tests/Shop.Tests/Domain/BankTransactionTests.cs"
+  ]},
+  "plan_drift": {
+    "unplanned": [
+      "src/Shop.Domain/Common/Money.cs",
+      "src/Shop.Api/Controllers/CustomersController.cs",
+      "src/Shop.Infrastructure/Persistence/Migrations/20260415093000_AddPaymentReference.cs"
+    ],
+    "planned_not_changed": [
+      "src/Shop.Api/Security/BankWebhookSignatureVerifier.cs",
+      "tests/Shop.Tests/Api/BankWebhookSignatureVerifierTests.cs",
+      "src/Shop.Api/Program.cs",
+      "src/Shop.Application/Reconciliation/ListUnmatchedBankTransactionsQuery.cs"
+    ]
+  }
+}

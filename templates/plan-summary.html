@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="code-review-assistant render_report.py">
+<title>@@TITLE@@</title>
+<style>
+@@BASE_CSS@@
+</style>
+<style>
+/* ---------- plan summary ---------- */
+.ps-layout { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 980px) { .ps-layout { grid-template-columns: minmax(0, 1fr); } .toc { display: none; } }
+.toc { position: sticky; top: 12px; font-size: 12px; }
+.toc a { display: flex; justify-content: space-between; gap: 8px; padding: 3px 8px; border-radius: 4px; color: var(--text-2); }
+.toc a:hover { background: var(--surface-2); text-decoration: none; color: var(--text); }
+.toc a .n { color: var(--text-3); font-variant-numeric: tabular-nums; }
+.toc .tg { font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--text-3); font-weight: 700; padding: 10px 8px 3px; }
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 14px; }
+@media (max-width: 860px) { .hero { grid-template-columns: minmax(0, 1fr); } }
+.goal { font-size: 14.5px; line-height: 1.55; color: var(--text); }
+.goal-h { font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); margin-bottom: 6px; }
+.stage-lbl { display: inline-flex; gap: 6px; align-items: center; font-size: 11px; color: var(--text-3); margin-bottom: 4px; }
+.cut { display: flex; flex-direction: column; gap: 8px; }
+.cut-big { display: flex; align-items: baseline; gap: 6px; font-variant-numeric: tabular-nums; }
+.cut-big .v { font-size: 22px; font-weight: 750; }
+.cut-big .arr { color: var(--text-3); }
+.cut-bar { position: relative; height: 10px; background: var(--surface-3); border-radius: 3px; overflow: hidden; }
+.cut-bar span { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); border-radius: 3px; }
+.src { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 8px; align-items: center; font-size: 12px; }
+.src .wb { display: inline-block; height: 6px; background: var(--text-3); border-radius: 2px; opacity: .5; vertical-align: middle; }
+.src .fpath .base { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.src .fpath .dir { display: none; }
+.src .w { font-variant-numeric: tabular-nums; color: var(--text-3); text-align: right; white-space: nowrap; font-size: 11px; }
+.facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 1100px) { .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .facts { grid-template-columns: minmax(0, 1fr); } }
+.fact { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 9px 11px; min-width: 0; }
+.fact h3 { font-size: 12px; display: flex; gap: 6px; align-items: center; margin-bottom: 4px; }
+.fact .ico { font-size: 13px; color: var(--text-3); width: 14px; text-align: center; }
+.fact li { font-size: 12.5px; flex-direction: column; gap: 2px !important; }
+.fact .none { color: var(--text-3); font-size: 12px; font-style: italic; }
+.kind-functional { background: var(--accent-bg); color: var(--accent); }
+.kind-non_functional { background: var(--surface-3); color: var(--text-2); }
+.kind-security { background: var(--m-aih-bg); color: var(--m-aih); }
+.ck { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; border-radius: 3px; padding: 1px 5px; white-space: nowrap; }
+.ck.rest { background: var(--accent-bg); color: var(--accent); }
+.ck.event { background: var(--st-mod-bg); color: var(--st-mod); }
+.ck.db { background: var(--surface-3); color: var(--text); }
+.ck.external { background: var(--m-human-bg); color: var(--m-human); }
+.cname { font-family: var(--mono); font-size: 12px; font-weight: 600; word-break: break-word; }
+.dec-r { color: var(--text-2); font-size: 12px; margin-top: 2px; }
+.stages { counter-reset: st; list-style: none; padding: 0; margin: 0; }
+.stages > li { counter-increment: st; display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 4px 10px; padding: 8px 12px; border-top: 1px solid var(--border); }
+.stages > li:first-child { border-top: 0; }
+.stages > li::before { content: counter(st); grid-row: span 2; width: 22px; height: 22px; border-radius: 11px; background: var(--text); color: var(--surface); font: 700 11px/22px var(--font); text-align: center; }
+.stages .sn { font-weight: 650; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.stages .sf { display: flex; flex-wrap: wrap; gap: 4px; }
+.stages .sf .chip { font-family: var(--mono); font-size: 11px; }
+.efiles .dir { padding: 6px 12px 2px; font: 600 11.5px var(--mono); color: var(--text-3); border-top: 1px solid var(--border); background: var(--surface-2); }
+.efiles .dir:first-child { border-top: 0; }
+.efiles .fr { display: grid; grid-template-columns: 62px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 3px 12px 3px 22px; font-size: 12px; }
+.efiles .fr .nm { font-family: var(--mono); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.efiles .sum { display: flex; gap: 6px; align-items: center; }
+.dg-card .card-b { padding-top: 6px; }
+</style>
+</head>
+<body>
+<div class="page" id="app"><noscript><p style="padding:20px">This report renders with JavaScript. Enable it to view the summary.</p></noscript></div>
+<script type="application/json" id="cra-data">@@DATA_JSON@@</script>
+<script>
+@@COMPONENTS_JS@@
+</script>
+<script>
+(function () {
+  'use strict';
+  var C = window.CRA, h = C.h, arr = C.arr, obj = C.obj, str = C.str, num = C.num, strs = C.strs;
+  var app = document.getElementById('app');
+  var raw = C.readJson('cra-data');
+  if (!raw || raw.__error || typeof raw !== 'object') {
+    C.fatal(app, raw && raw.__error ? 'The embedded plan summary is not valid JSON (' + raw.__error + ').' : 'No plan summary data is embedded.');
+    return;
+  }
+  var P = obj(raw);
+  C.initTooltip();
+  var sources = arr(P.sources).map(obj).filter(function (s) { return s.path; });
+  var kinds = {};
+  sources.forEach(function (s) { if (s.kind) kinds[str(s.path)] = str(s.kind); });
+  var R = function (ref) { return ref ? C.refEl(ref, kinds) : h('span', { class: 'muted' }, '—'); };
+  var items = function (k) { return arr(P[k]).map(function (x) { return typeof x === 'string' ? { text: x } : obj(x); }).filter(function (x) { return Object.keys(x).length; }); };
+
+  app.appendChild(h('header', { class: 'topbar' }, [
+    h('span', { class: 'brand' }, 'Code Review Assistant'),
+    h('span', { class: 'title' }, str(P.title) || 'Plan summary'),
+    h('span', { class: 'meta' }, [h('span', null, 'Stage 0 · plan summary'), h('span', null, 'condensed, not evaluated')]),
+    h('span', { class: 'spacer' }),
+    C.themeToggle()
+  ]));
+
+  var layout = h('div', { class: 'ps-layout' });
+  var toc = h('nav', { class: 'toc', 'aria-label': 'Sections' });
+  var main = h('main', { class: 'stack', style: { 'min-width': '0' } });
+  layout.appendChild(toc); layout.appendChild(main);
+  app.appendChild(layout);
+  function tocGroup(label) { toc.appendChild(h('div', { class: 'tg' }, label)); }
+  function tocLink(id, label, n) { toc.appendChild(h('a', { href: '#' + id }, [h('span', null, label), n != null ? h('span', { class: 'n' }, String(n)) : null])); }
+
+  /* ---------- hero: goal + sources/cut ---------- */
+  var cut = obj(P.cut);
+  var wIn = cut.words_in != null ? num(cut.words_in) : sources.reduce(function (a, s) { return a + num(s.words); }, 0);
+  var wOut = cut.words_out != null ? num(cut.words_out) : null;
+  var ratio = wIn > 0 && wOut != null ? Math.max(0, Math.min(1, wOut / wIn)) : null;
+  var maxW = Math.max.apply(null, [1].concat(sources.map(function (s) { return num(s.words); })));
+  var srcCard = C.card('Sources', sources.length ? CRA.plural(sources.length, 'document') : null, h('div', { class: 'cut' }, [
+    wIn ? h('div', { class: 'cut-big', 'data-tip': 'Words in the source documents → words kept in this summary' }, [
+      h('span', { class: 'v' }, C.fmt(wIn)), h('span', { class: 'arr' }, '→'), h('span', { class: 'v' }, wOut != null ? C.fmt(wOut) : '?'), h('span', { class: 'muted' }, 'words'),
+      ratio != null ? h('span', { class: 'badge', style: { 'margin-left': 'auto' } }, Math.round((1 - ratio) * 100) + '% cut') : null]) : null,
+    ratio != null ? h('div', { class: 'cut-bar', 'data-tip': 'Kept ' + Math.round(ratio * 100) + '% of the words' }, h('span', { style: { width: Math.max(1, ratio * 100) + '%' } })) : null,
+    sources.length ? h('div', { class: 'src' }, sources.map(function (s) {
+      return [h('span', { class: 'ref' }, h('span', { class: 'rk' }, str(s.kind) || 'doc')),
+        h('span', { class: 'fpath', 'data-tip': str(s.path) }, [h('span', { class: 'dir' }, C.splitPath(s.path).dir), h('span', { class: 'base' }, C.splitPath(s.path).base)]),
+        h('span', { class: 'w' }, [s.words != null ? h('span', { class: 'wb', style: { width: Math.max(2, num(s.words) / maxW * 40) + 'px' } }) : null, ' ', s.words != null ? C.fmt(s.words) + ' w' : '']) ];
+    })) : h('div', { class: 'empty' }, 'No source documents listed.')
+  ]));
+  main.appendChild(h('section', { class: 'hero', id: 'goal' }, [
+    h('div', { class: 'card' }, h('div', { class: 'card-b', style: { padding: '14px 16px' } }, [h('div', { class: 'goal-h' }, 'Goal'),
+      P.goal ? h('p', { class: 'goal' }, str(P.goal)) : h('p', { class: 'empty' }, 'No goal stated in the sources.')])),
+    srcCard
+  ]));
+  tocGroup('Overview'); tocLink('goal', 'Goal');
+
+  /* ---------- facts surfaced (neutral) ---------- */
+  var fnd = obj(P.findings);
+  var FACTS = [
+    ['contradictions', 'Contradictions', '⇄', 'Spec and plan say different things'],
+    ['unaddressed_requirements', 'Requirements without a plan step', '○', 'Stated in the spec, no step in the plan'],
+    ['unrequired_plan_items', 'Plan items without a requirement', '□', 'Planned, not asked for by the spec'],
+    ['open_questions', 'Open questions', '?', 'Left open by the sources']
+  ];
+  var factTotal = 0;
+  var factsEl = h('div', { class: 'facts' }, FACTS.map(function (fd) {
+    var list = arr(fnd[fd[0]]).map(function (x) { return typeof x === 'string' ? { text: x } : obj(x); }).filter(function (x) { return x.text; });
+    factTotal += list.length;
+    return h('div', { class: 'fact', 'data-tip': fd[3] }, [
+      h('h3', null, [h('span', { class: 'ico' }, fd[2]), fd[1], h('span', { class: 'badge' }, String(list.length))]),
+      list.length ? h('ul', { class: 'ilist' }, list.map(function (x) { return h('li', null, [h('span', null, str(x.text)), C.refsEl(x.refs, kinds)]); }))
+        : h('div', { class: 'none' }, 'None found')
+    ]);
+  }));
+  main.appendChild(h('section', { id: 'facts' }, [h('div', { class: 'section-title', style: { 'margin-top': '0' } }, [h('h2', null, 'Surfaced from the sources'), h('span', { class: 'count' }, 'facts for you to decide on, not a grade')]), factsEl]));
+  tocLink('facts', 'Surfaced facts', factTotal);
+
+  /* ---------- diagrams ---------- */
+  tocGroup('Diagrams');
+  var comp = obj(P.components);
+  var compSvg = C.renderComponentDiagram(comp, { byLayer: true });
+  main.appendChild(C.card('Components', 'planned change by layer', compSvg ? [C.fitWrap(compSvg)] : h('div', { class: 'empty' }, 'No components extracted.'),
+    { id: 'components', cls: 'dg-card', tools: compSvg ? C.diagramLegend(false) : null }));
+  tocLink('components', 'Components', arr(comp.nodes).length);
+  var seq = obj(P.sequence);
+  var seqSvg = C.renderSequence(seq);
+  main.appendChild(C.card(str(seq.title) || 'Main scenario', 'sequence', seqSvg ? C.fitWrap(seqSvg) : h('div', { class: 'empty' }, 'No sequence extracted.'),
+    { id: 'sequence', cls: 'dg-card' }));
+  tocLink('sequence', 'Sequence', arr(seq.steps).length);
+
+  /* ---------- tables ---------- */
+  tocGroup('What the sources say');
+  function table(id, title, hint, cols, rowsData, rowFn) {
+    var body = rowsData.length ? h('table', { class: 'tbl stackable' }, [
+      h('thead', null, h('tr', null, cols.map(function (c) { return h('th', null, c); }))),
+      h('tbody', null, rowsData.map(rowFn))
+    ]) : h('div', { class: 'empty', style: { padding: '8px 12px' } }, 'Nothing extracted.');
+    main.appendChild(C.card(title, hint, body, { id: id, flush: true }));
+    tocLink(id, title, rowsData.length);
+  }
+  var KIND_LBL = { functional: 'functional', non_functional: 'non-functional', security: 'security' };
+  table('requirements', 'Requirements', null, ['ID', 'Kind', 'Requirement', 'Source'], items('requirements'), function (r) {
+    var k = str(r.kind);
+    return h('tr', null, [h('td', { class: 'c-id' }, str(r.id)), h('td', { class: 'c-badge' }, k ? h('span', { class: 'ck kind-' + k }, KIND_LBL[k] || k) : null), h('td', null, str(r.text)), h('td', { class: 'c-ref' }, R(r.ref))]);
+  });
+  table('rules', 'Business rules', null, ['ID', 'Rule', 'Source'], items('business_rules'), function (r) {
+    return h('tr', null, [h('td', { class: 'c-id' }, str(r.id)), h('td', null, str(r.text)), h('td', { class: 'c-ref' }, R(r.ref))]);
+  });
+  var CHG = { new: 'new', modified: 'modified', removed: 'removed' };
+  table('contracts', 'Contracts', 'API · events · data · external', ['Kind', 'Contract', 'Change', 'Details', 'Source'], items('contracts'), function (r) {
+    var k = str(r.kind), c = str(r.change);
+    return h('tr', null, [h('td', { class: 'c-badge' }, k ? h('span', { class: 'ck ' + k }, k) : null), h('td', null, h('span', { class: 'cname' }, str(r.name))),
+      h('td', { class: 'c-badge' }, c ? C.stTag(CHG[c] || c, c) : null), h('td', null, str(r.details)), h('td', { class: 'c-ref' }, R(r.ref))]);
+  });
+  table('decisions', 'Decisions', null, ['Decision', 'Source'], items('decisions'), function (r) {
+    return h('tr', null, [h('td', null, [h('div', null, str(r.text)), r.rationale ? h('div', { class: 'dec-r' }, ['↳ ', str(r.rationale)]) : null]), h('td', { class: 'c-ref' }, R(r.ref))]);
+  });
+  function simple(id, title, key) {
+    table(id, title, null, ['', 'Source'], items(key), function (r) { return h('tr', null, [h('td', null, str(r.text)), h('td', { class: 'c-ref' }, R(r.ref))]); });
+  }
+  simple('constraints', 'Constraints', 'constraints');
+  simple('edge', 'Edge cases', 'edge_cases');
+  simple('acceptance', 'Acceptance criteria', 'acceptance_criteria');
+  simple('testing', 'Testing strategy', 'testing_strategy');
+  simple('risks', 'Known risks', 'risks');
+
+  /* ---------- stages ---------- */
+  tocGroup('Implementation');
+  var stages = items('stages');
+  main.appendChild(C.card('Stages', null, stages.length ? h('ol', { class: 'stages' }, stages.map(function (s) {
+    var fs = strs(s.files);
+    return h('li', null, [h('div', { class: 'sn' }, [h('span', null, str(s.name) || 'Stage'), R(s.ref)]),
+      h('div', { class: 'sf' }, fs.length ? fs.map(function (p) { return h('span', { class: 'chip', 'data-tip': p }, C.basename(p)); }) : h('span', { class: 'muted' }, 'no files named'))]);
+  })) : h('div', { class: 'empty', style: { padding: '8px 12px' } }, 'No stages extracted.'), { id: 'stages', flush: true }));
+  tocLink('stages', 'Stages', stages.length);
+
+  /* ---------- expected files by directory ---------- */
+  var ef = items('expected_files').filter(function (x) { return x.path; });
+  var byDir = {}, counts = { create: 0, modify: 0, delete: 0 };
+  ef.forEach(function (x) {
+    var d = C.splitPath(x.path).dir || './';
+    (byDir[d] = byDir[d] || []).push(x);
+    if (counts[x.action] != null) counts[x.action]++;
+  });
+  var ACT = { create: ['create', 'new'], modify: ['modify', 'modified'], delete: ['delete', 'removed'] };
+  var efBody = ef.length ? h('div', { class: 'efiles' }, Object.keys(byDir).sort().map(function (d) {
+    return [h('div', { class: 'dir', 'data-tip': d }, d)].concat(byDir[d].map(function (x) {
+      var a = ACT[x.action] || [str(x.action) || '?', 'existing'];
+      return h('div', { class: 'fr' }, [C.stTag(a[1], a[0]), h('span', { class: 'nm', 'data-tip': str(x.path) }, C.basename(x.path)), R(x.ref)]);
+    }));
+  })) : h('div', { class: 'empty', style: { padding: '8px 12px' } }, 'No expected file changes extracted.');
+  main.appendChild(C.card('Expected file changes', null, efBody, { id: 'files', flush: true,
+    tools: ef.length ? h('span', { class: 'sum' }, [C.stTag('new', counts.create + ' create'), C.stTag('modified', counts.modify + ' modify'), C.stTag('removed', counts.delete + ' delete')]) : null }));
+  tocLink('files', 'Expected files', ef.length);
+
+  app.appendChild(h('div', { class: 'footer' }, ['Generated by code-review-assistant · the summary condenses the sources and does not evaluate the plan',
+    P.schema_version != null ? ' · schema v' + str(P.schema_version) : null]));
+})();
+</script>
+</body>
+</html>

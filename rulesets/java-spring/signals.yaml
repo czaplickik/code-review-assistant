@@ -1,0 +1,286 @@
+# Java / Spring deterministic rules. Format: see rulesets/_base/signals.yaml.
+rules:
+  # ---------------------------------------------------------------- security
+  - id: java.security.method-security-removed
+    dimension: security
+    points: 4
+    critical: true
+    title: Method security annotation removed
+    reason: '@PreAuthorize/@Secured/@RolesAllowed removed — the method may now be reachable without the previous check.'
+    match: removed
+    pattern: '@(PreAuthorize|PostAuthorize|Secured|RolesAllowed|PreFilter|PostFilter)\b'
+
+  - id: java.security.method-security-changed
+    dimension: security
+    points: 3
+    points_new_file: 1
+    title: Method security expression added or changed
+    reason: Authorization expression on a method was added or modified.
+    match: added
+    pattern: '@(PreAuthorize|PostAuthorize|Secured|RolesAllowed|PreFilter|PostFilter)\b'
+
+  - id: java.security.filter-chain
+    dimension: security
+    points: 4
+    points_new_file: 3
+    title: HTTP security rules changed
+    reason: SecurityFilterChain / request matcher rules changed (permitAll, authenticated, roles, CSRF, CORS).
+    match: changed
+    pattern: '(permitAll|authenticated\(\)|hasRole|hasAnyRole|hasAuthority|requestMatchers|authorizeHttpRequests|csrf|cors|anonymous\(\)|sessionManagement|oauth2ResourceServer|httpBasic|formLogin)'
+    not_pattern: '@(PreAuthorize|PostAuthorize|Secured|RolesAllowed)'
+
+  - id: java.security.permit-all-added
+    dimension: security
+    points: 5
+    critical: true
+    title: Endpoint opened with permitAll
+    reason: A request matcher now permits unauthenticated access.
+    match: added
+    pattern: 'permitAll\(\)'
+
+  - id: java.security.token-validation
+    dimension: security
+    points: 4
+    critical: true
+    title: Token / JWT validation logic changed
+    reason: Code that parses or validates tokens (signature, expiry, claims) changed.
+    match: changed
+    pattern: '(getExpiration|isTokenExpired|isExpired|parseClaims|parseSignedClaims|parseClaimsJws|Jwts\.parser|verifyWith|setSigningKey|signWith|validateToken|isTokenValid|requireExpiration|AllowedClockSkew|clockSkew|JwtDecoder|NimbusJwt)'
+    path: ['**/*.java', '**/*.kt']
+
+  - id: java.security.password-encoding
+    dimension: security
+    points: 5
+    critical: true
+    title: Password hashing changed
+    reason: PasswordEncoder implementation or strength changed.
+    match: changed
+    pattern: '(BCryptPasswordEncoder|Argon2PasswordEncoder|Pbkdf2PasswordEncoder|SCryptPasswordEncoder|NoOpPasswordEncoder|DelegatingPasswordEncoder|PasswordEncoderFactories)'
+
+  - id: java.security.ownership-check-removed
+    dimension: security
+    points: 4
+    critical: true
+    title: Ownership / access check removed
+    reason: A line performing an ownership or access check was removed.
+    match: removed
+    pattern: '(?i)(isOwner|checkOwnership|verifyOwner|assertOwner|hasPermission|canAccess|ensureAccess|AccessDenied\w*|Forbidden\w*Exception|owner\w*\s*[!=]=|owner\w*\.equals\(|\.equals\(\s*current\w*(User|Principal)\w*\))'
+
+  - id: java.security.sql-concatenation
+    dimension: security
+    points: 4
+    title: SQL built by string concatenation
+    reason: Query text concatenated with variables — injection risk.
+    match: added
+    pattern: '(createQuery|createNativeQuery|executeQuery|executeUpdate|jdbcTemplate\.\w+|@Query)\s*\(.*"\s*\+\s*\w'
+
+  # ---------------------------------------------------------------- data integrity
+  - id: java.data.transactional-removed
+    dimension: data_integrity
+    points: 4
+    critical: true
+    title: '@Transactional removed'
+    reason: Writes previously executed atomically may now commit partially.
+    match: removed
+    pattern: '@Transactional\b'
+
+  - id: java.data.transactional-changed
+    dimension: data_integrity
+    points: 3
+    points_new_file: 1
+    title: Transaction boundary added or changed
+    reason: '@Transactional added or its propagation / isolation / readOnly / rollbackFor changed.'
+    match: added
+    pattern: '@Transactional\b'
+
+  - id: java.data.locking
+    dimension: data_integrity
+    points: 3
+    points_new_file: 2
+    title: Locking / versioning changed
+    reason: Optimistic or pessimistic locking changed.
+    match: changed
+    pattern: '(@Version\b|@Lock\s*\(|LockModeType|PESSIMISTIC_|OPTIMISTIC)'
+
+  - id: java.data.cascade-orphan
+    dimension: data_integrity
+    points: 3
+    points_new_file: 2
+    title: Cascade / orphan removal changed
+    reason: JPA cascade or orphanRemoval affects what gets deleted or persisted together.
+    match: changed
+    pattern: '(cascade\s*=|orphanRemoval\s*=|CascadeType\.)'
+
+  - id: java.data.entity-mapping
+    dimension: data_integrity
+    points: 2
+    points_new_file: 1
+    title: JPA entity mapping changed
+    reason: Column/relationship mapping changed — must match the schema migration.
+    match: changed
+    pattern: '@(Entity|Table|Column|JoinColumn|OneToMany|ManyToOne|ManyToMany|OneToOne|Embedded|Enumerated|Convert)\b'
+
+  - id: java.data.money-rounding
+    dimension: data_integrity
+    points: 3
+    points_new_file: 2
+    title: Monetary rounding / scale changed
+    reason: RoundingMode / setScale / BigDecimal arithmetic changed — affects stored and charged amounts.
+    match: changed
+    pattern: '(RoundingMode\.|setScale\s*\(|MathContext|\.divide\s*\()'
+    tests: exclude
+
+  # ---------------------------------------------------------------- contracts
+  - id: java.contracts.rest-mapping
+    dimension: contracts
+    points: 2
+    points_new_file: 1
+    title: REST endpoint mapping changed
+    reason: Endpoint path, method or parameters changed.
+    match: changed
+    pattern: '@(Get|Post|Put|Patch|Delete|Request)Mapping\b|@(PathVariable|RequestParam|RequestBody|ResponseStatus)\b'
+
+  - id: java.contracts.serialization
+    dimension: contracts
+    points: 3
+    points_new_file: 1
+    title: JSON serialization changed
+    reason: Jackson annotations change the wire format.
+    match: changed
+    pattern: '@(JsonProperty|JsonIgnore|JsonInclude|JsonFormat|JsonTypeInfo|JsonSubTypes|JsonAlias|JsonCreator)\b'
+
+  # ---------------------------------------------------------------- integration
+  - id: java.integration.messaging
+    dimension: integration
+    points: 3
+    points_new_file: 2
+    title: Messaging producer / consumer changed
+    reason: Kafka / RabbitMQ / JMS listener or template usage changed.
+    match: changed
+    pattern: '(@KafkaListener|@RabbitListener|@JmsListener|KafkaTemplate|RabbitTemplate|JmsTemplate|@SendTo|StreamBridge|\.send\s*\(\s*"?[\w.-]*topic)'
+
+  - id: java.integration.http-client
+    dimension: integration
+    points: 3
+    points_new_file: 2
+    title: External HTTP call changed
+    reason: Outbound HTTP client usage changed — check timeouts, retries and error mapping.
+    match: changed
+    pattern: '(RestTemplate|WebClient|RestClient|@FeignClient|HttpClient\.new|OkHttpClient|\.retrieve\(\)|\.exchange\()'
+
+  - id: java.integration.resilience
+    dimension: integration
+    points: 3
+    points_new_file: 2
+    title: Retry / timeout / circuit breaker changed
+    reason: Resilience settings decide behaviour under partial failure.
+    match: changed
+    pattern: '(?i)(@Retryable|@CircuitBreaker|@TimeLimiter|@Bulkhead|RetryTemplate|maxAttempts|backoff|connectTimeout|readTimeout|responseTimeout|timeout\s*[:=(])'
+
+  # ---------------------------------------------------------------- concurrency
+  - id: java.concurrency.async-scheduling
+    dimension: concurrency
+    points: 3
+    points_new_file: 2
+    title: Async / scheduled execution changed
+    reason: '@Async/@Scheduled/executors change threading and lifecycle.'
+    match: changed
+    pattern: '(@Async\b|@Scheduled\b|ExecutorService|CompletableFuture|ThreadPoolTaskExecutor|parallelStream\(\)|new Thread\()'
+
+  - id: java.concurrency.shared-state
+    dimension: concurrency
+    points: 3
+    title: Shared mutable state added
+    reason: Static or singleton-held mutable collection — race conditions across requests.
+    match: added
+    pattern: '(static\s+(final\s+)?(Map|List|Set|HashMap|ArrayList|HashSet|ConcurrentHashMap)<|static\s+(?!final)\w+\s+\w+\s*=|synchronized\s*\()'
+    not_pattern: '(List|Set|Map)\.(of|copyOf)\(|EnumSet\.|Collections\.(unmodifiable|empty)|Immutable\w+\.|static\s+final\s+\w+\s+[A-Z_]+\s*=\s*\w+\.(of|ofDays|valueOf)'
+
+  # ---------------------------------------------------------------- config / infra
+  - id: java.config.application-config
+    dimension: config_infra
+    points: 2
+    title: Application configuration changed
+    reason: application*.yml / properties changes affect runtime behaviour per environment.
+    match: file
+    path: ['**/application*.yml', '**/application*.yaml', '**/application*.properties', '**/bootstrap*.yml']
+    tests: exclude
+
+  - id: java.config.build-dependencies
+    dimension: config_infra
+    points: 2
+    title: Build / dependencies changed
+    reason: Dependency or plugin versions changed.
+    match: file
+    path: ['**/pom.xml', '**/build.gradle', '**/build.gradle.kts', '**/settings.gradle*', '**/gradle/libs.versions.toml']
+
+  - id: java.config.bean-wiring
+    dimension: config_infra
+    points: 2
+    points_new_file: 1
+    title: Bean wiring / configuration class changed
+    reason: '@Configuration/@Bean/@Conditional/@Profile change what is wired at startup.'
+    match: changed
+    pattern: '@(Configuration|Bean|Primary|Qualifier|Conditional\w*|Profile|EnableWebSecurity|EnableMethodSecurity|Import)\b'
+
+  # ---------------------------------------------------------------- error handling
+  - id: java.errors.swallowed
+    dimension: error_handling
+    points: 2
+    title: Broad or empty catch
+    reason: Empty catch or catch of Exception/Throwable — failures may become silent.
+    match: added
+    pattern: 'catch\s*\([^)]*\)\s*\{\s*\}|catch\s*\(\s*(Exception|Throwable|RuntimeException)\s+\w+\s*\)'
+
+  - id: java.errors.generic-exception
+    dimension: conventions
+    points: 2
+    title: Generic exception thrown
+    reason: Raw RuntimeException/Exception instead of the project's exception hierarchy.
+    match: added
+    pattern: 'throw\s+new\s+(RuntimeException|Exception|IllegalStateException)\s*\('
+
+  - id: java.errors.handler-changed
+    dimension: error_handling
+    points: 3
+    points_new_file: 2
+    title: Global error mapping changed
+    reason: '@ControllerAdvice / @ExceptionHandler changes status codes and error bodies for many endpoints.'
+    match: changed
+    pattern: '@(RestControllerAdvice|ControllerAdvice|ExceptionHandler)\b'
+
+  # ---------------------------------------------------------------- conventions / architecture
+  - id: java.conventions.field-injection
+    dimension: conventions
+    points: 2
+    title: Field injection
+    reason: '@Autowired on a field — most Spring projects mandate constructor injection.'
+    match: added
+    pattern: '@Autowired\s*(private|protected|public)?\s*\w|^\s*@Autowired\s*$'
+
+  - id: java.architecture.repository-in-controller
+    dimension: architecture
+    points: 3
+    title: Controller uses a repository directly
+    reason: Persistence accessed from the web layer bypasses the service layer.
+    match: added
+    path: ['**/*Controller.java', '**/*Controller.kt', '**/*Resource.java']
+    pattern: '\b\w+Repository\b'
+
+  # ---------------------------------------------------------------- performance
+  - id: java.performance.eager-fetch
+    dimension: performance
+    points: 2
+    points_new_file: 1
+    title: Fetch strategy changed
+    reason: EAGER fetching / entity graphs change query count and size.
+    match: changed
+    pattern: '(FetchType\.EAGER|@EntityGraph|JOIN FETCH|@BatchSize|@Fetch\()'
+
+  - id: java.performance.find-all
+    dimension: performance
+    points: 2
+    title: Unbounded query
+    reason: findAll() without paging loads a whole table.
+    match: added
+    pattern: '\.findAll\(\s*\)'

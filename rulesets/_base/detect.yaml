@@ -1,0 +1,21 @@
+# Stack-independent profile, applied to every file in addition to its stack ruleset.
+id: _base
+file_patterns: ['**']
+test_patterns:
+  - '**/test/**'
+  - '**/tests/**'
+  - '**/__tests__/**'
+  - '**/*.test.*'
+  - '**/*.spec.*'
+migration_patterns:
+  - '**/migrations/**'
+  - '**/migration/**'
+  - '**/db/changelog/**'
+exclude: []
+comment_patterns:
+  - '^\s*(//|#(?!include)|/\*|\*|\*/|--\s)'
+import_patterns: []
+symbol_patterns: []
+assertion_patterns: []
+skip_patterns: []
+module_patterns: []

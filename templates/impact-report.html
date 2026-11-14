@@ -1,0 +1,1022 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="code-review-assistant render_report.py">
+<title>@@TITLE@@</title>
+<style>
+@@BASE_CSS@@
+</style>
+<style>
+/* ---------- impact report ---------- */
+.verdict {
+  --mc: var(--m-unknown); --mbg: var(--m-unknown-bg);
+  display: grid; grid-template-columns: minmax(250px, 320px) minmax(0, 1fr); gap: 0;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--surface); overflow: hidden; box-shadow: var(--shadow);
+}
+.verdict.m-static { --mc: var(--m-static); --mbg: var(--m-static-bg); }
+.verdict.m-ai { --mc: var(--m-ai); --mbg: var(--m-ai-bg); }
+.verdict.m-aih { --mc: var(--m-aih); --mbg: var(--m-aih-bg); }
+.verdict.m-human { --mc: var(--m-human); --mbg: var(--m-human-bg); }
+.v-mode { background: var(--mbg); border-right: 1px solid var(--border); padding: 14px 16px; border-left: 6px solid var(--mc); }
+.v-mode .lbl { font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+.v-mode .name { font-size: 22px; font-weight: 750; color: var(--mc); line-height: 1.15; margin: 4px 0 2px; letter-spacing: -.01em; }
+.v-mode code { font-size: 11px; color: var(--text-2); }
+.v-mode .hint { margin-top: 8px; color: var(--text-2); font-size: 12px; }
+.mscale { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; margin-top: 12px; }
+.mscale .ms { height: 7px; border-radius: 2px; background: var(--c); opacity: .22; }
+.mscale .ms.on { opacity: 1; height: 9px; margin-top: -1px; box-shadow: 0 0 0 2px var(--surface); }
+.mscale .sl { font-size: 9.5px; color: var(--text-3); text-align: center; margin-top: 3px; line-height: 1.15; }
+.mscale .sl.on { color: var(--text); font-weight: 700; }
+.v-body { padding: 12px 16px; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.v-rule { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-size: 12px; color: var(--text-2); }
+.v-rule code { background: var(--surface-2); padding: 1px 6px; border-radius: 3px; color: var(--text); }
+.v-expl { font-size: 13px; color: var(--text); }
+.v-dec { display: flex; flex-wrap: wrap; gap: 6px; }
+.dchip-f {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-width: 0; padding: 3px 8px 3px 3px; border-radius: 6px;
+  border: 1px solid var(--border-strong); background: var(--surface); cursor: pointer; font-size: 12px; text-align: left;
+}
+.dchip-f:hover { border-color: var(--text-3); background: var(--surface-2); }
+.dchip-f.crit { border-color: var(--crit); box-shadow: inset 3px 0 0 var(--crit); padding-left: 6px; }
+.dchip-f.inferred { border-style: dashed; }
+.dchip-f .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; font-weight: 600; }
+.dchip-f.inferred .t { font-style: italic; font-weight: 500; }
+.dchip-f .fn { font-family: var(--mono); font-size: 11px; color: var(--text-3); white-space: nowrap; }
+.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+.stat { background: var(--surface-2); border-radius: 5px; padding: 6px 9px; min-width: 0; }
+.stat .k { font-size: 10.5px; color: var(--text-3); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; white-space: nowrap; }
+.stat .v { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; white-space: nowrap; }
+.stat .v .add { color: var(--st-new); } .stat .v .del { color: var(--st-removed); }
+.stat .v small { font-size: 11px; font-weight: 500; color: var(--text-3); }
+.stat.wide { grid-column: span 2; }
+.stat.human { background: var(--m-aih-bg); } .stat.human .v { color: var(--m-aih); }
+.human-tag { display: inline-flex; align-items: center; height: 18px; padding: 0 5px; border-radius: 3px; font: 800 9.5px/1 var(--font); letter-spacing: .06em; text-transform: uppercase; color: var(--m-aih); border: 1.5px solid var(--m-aih); white-space: nowrap; }
+.fh .fh-crit { gap: 3px; flex-wrap: wrap; }
+.v-human { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; }
+.v-human .chip { font-family: var(--mono); font-size: 11.5px; }
+.stat.crit { background: var(--crit-bg); } .stat.crit .v { color: var(--crit-text); }
+.lbar { display: flex; height: 4px; border-radius: 2px; overflow: hidden; margin-top: 3px; background: var(--surface-3); }
+.lbar .a { background: var(--st-new); } .lbar .d { background: var(--st-removed); }
+@media (max-width: 760px) { .verdict { grid-template-columns: minmax(0, 1fr); } .v-mode { border-right: 0; border-bottom: 1px solid var(--border); } }
+
+.ctx { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 14px; margin-top: 14px; }
+@media (max-width: 980px) { .ctx { grid-template-columns: minmax(0, 1fr); } }
+.kv { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 5px 10px; align-items: baseline; font-size: 12px; }
+.kv > .k { color: var(--text-3); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; font-weight: 600; }
+.kv > .v { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
+.chip.ok::before { content: "\2713"; color: var(--ok); font-weight: 800; }
+.chip.miss { background: var(--warn-bg); border-color: transparent; color: var(--warn); }
+.chip.miss::before { content: "\2715"; font-weight: 800; }
+.lim li { color: var(--text-2); }
+.lim .ico { color: var(--warn); }
+
+/* dimension profile */
+.prof { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 0 12px; align-items: center; font-size: 12px; }
+.prof .ph { font-size: 10.5px; color: var(--text-3); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; padding-bottom: 4px; }
+.prof .r { display: contents; cursor: pointer; }
+.prof .r > * { padding: 3px 0; border-top: 1px solid var(--border); }
+.prof .r:hover > * { background: var(--surface-2); }
+.prof .r.fam > * { border-top: 1px solid var(--border-strong); padding-top: 6px; }
+.prof .r.fam .lab { font-weight: 700; }
+.prof .r.dim .lab { padding-left: 16px; color: var(--text-2); }
+.prof .r.none .lab { color: var(--text-3); }
+.prof .r.sel > * { background: var(--accent-bg); }
+.prof .lab { display: flex; align-items: center; gap: 7px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prof .sw { width: 10px; height: 10px; border-radius: 3px; background: var(--dc); flex: none; }
+.prof .r.dim .sw { width: 8px; height: 8px; border-radius: 50%; }
+.pips { display: inline-flex; gap: 2px; align-items: center; }
+.pips i { width: 14px; height: 10px; border-radius: 2px; background: var(--surface-3); display: inline-block; }
+.pips i.p1 { background: var(--p1); } .pips i.p2 { background: var(--p2); } .pips i.p3 { background: var(--p3); }
+.pips i.p4 { background: var(--p4); } .pips i.p5 { background: var(--p5); } .pips i.p0 { background: var(--p0); }
+.pips b { font-size: 11px; width: 14px; text-align: right; font-variant-numeric: tabular-nums; margin-left: 4px; }
+.fbar { display: inline-flex; align-items: center; gap: 6px; min-width: 120px; }
+.fbar .bar { height: 8px; width: 70px; background: var(--surface-3); border-radius: 2px; overflow: hidden; display: inline-block; }
+.fbar .bar span { display: block; height: 100%; background: var(--text-3); border-radius: 2px; }
+.fbar .n { font-variant-numeric: tabular-nums; color: var(--text-2); min-width: 22px; }
+.fbar .cr { color: var(--crit); font-weight: 700; font-size: 11px; display: inline-flex; gap: 3px; align-items: center; min-width: 34px; }
+
+/* treemap */
+.tm-host { width: 100%; min-height: 120px; }
+.tm-foot { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 6px; font-size: 11px; color: var(--text-3); align-items: center; }
+
+/* heatmap */
+.hm { display: grid; grid-template-columns: minmax(150px, 280px) repeat(12, minmax(22px, 1fr)); font-size: 11.5px; min-width: 560px; }
+.hm-wrap { overflow-x: auto; }
+.hm .fam { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-3); text-align: center;
+  border-bottom: 3px solid var(--fc); padding: 2px 0; margin: 0 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hm .dh { writing-mode: vertical-rl; transform: rotate(180deg); text-align: left; padding: 4px 0; font-size: 10.5px; color: var(--text-2);
+  display: flex; align-items: center; justify-content: flex-start; gap: 4px; height: 70px; margin: 0 auto; cursor: pointer; white-space: nowrap; }
+.hm .dh .ddot { margin-bottom: 0; }
+.hm .dh.sel { color: var(--accent); font-weight: 700; }
+.hm .rl { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 0 8px 0 0; cursor: pointer; height: 22px; }
+.hm .rl .rk { color: var(--text-3); font-size: 10.5px; width: 22px; text-align: right; flex: none; font-variant-numeric: tabular-nums; }
+.hm .rl .nm { font-family: var(--mono); font-size: 11.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hm .c { height: 20px; margin: 1px; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 10.5px; cursor: pointer; font-variant-numeric: tabular-nums; }
+.hm .c.e { background: transparent; box-shadow: inset 0 0 0 1px var(--border); cursor: default; }
+.hm .c.crit { box-shadow: inset 0 0 0 2px var(--crit); }
+.hm .rowh:hover, .hm .rl:hover .nm { color: var(--accent); }
+.hm-foot { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; margin-top: 8px; font-size: 11px; color: var(--text-3); }
+.hm-foot .cb { display: inline-block; width: 12px; height: 12px; border-radius: 3px; box-shadow: inset 0 0 0 2px var(--crit); vertical-align: -2px; }
+
+/* focus list */
+.focus li { font-size: 12.5px; }
+
+/* plan drift */
+.drift { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+@media (max-width: 760px) { .drift { grid-template-columns: minmax(0, 1fr); } }
+.drift h3 { font-size: 12px; display: flex; gap: 6px; align-items: center; margin-bottom: 4px; }
+.drift .ilist li { font-size: 12px; min-width: 0; }
+.drift a.fl { cursor: pointer; min-width: 0; display: flex; }
+.drift .fpath { min-width: 0; }
+.drift .fpath .base { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+
+/* file list toolbar */
+.toolbar {
+  position: sticky; top: 0; z-index: 20; background: var(--bg); padding: 8px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+}
+.toolbar .search { flex: 1 1 220px; max-width: 360px; }
+.toolbar .count { color: var(--text-3); font-size: 12px; margin-left: auto; white-space: nowrap; }
+.active-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+.diffnote { font-size: 11.5px; color: var(--warn); background: var(--warn-bg); padding: 4px 10px; border-radius: 4px; margin-top: 8px; }
+
+/* flows */
+.flow { margin-top: 12px; }
+.flow-h { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 2px; cursor: pointer; user-select: none; }
+.flow-h .fname { font-weight: 700; font-size: 13px; }
+.flow-h .fdesc { color: var(--text-3); font-size: 12px; }
+.flow-h .tw { color: var(--text-3); font-size: 11px; width: 10px; transition: transform .12s; }
+.flow.collapsed .flow-h .tw { transform: rotate(-90deg); }
+.flow.collapsed .rows { display: none; }
+.fstrip { display: inline-flex; gap: 2px; align-items: center; }
+.fstrip i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.fstrip i.crit { box-shadow: 0 0 0 1.5px var(--crit); }
+.fstrip .ar { color: var(--text-3); font-size: 9px; }
+.rows { border: 1px solid var(--border); border-radius: var(--r); background: var(--surface); overflow: hidden; }
+
+/* file row */
+.frow { border-top: 1px solid var(--border); }
+.frow:first-child { border-top: 0; }
+.frow.is-crit { box-shadow: inset 4px 0 0 var(--crit); }
+.fh {
+  display: grid; grid-template-columns: 30px 70px 38px 42px minmax(160px, 1.25fr) minmax(0, 1fr) auto 12px;
+  gap: 8px; align-items: center; padding: 5px 10px 5px 12px; cursor: pointer; min-height: 34px;
+}
+.fh:hover { background: var(--surface-2); }
+.frow.cur > .fh { background: var(--accent-bg); }
+.frow.open > .fh { background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.fh .rank { color: var(--text-3); font-size: 11px; text-align: right; font-variant-numeric: tabular-nums; }
+.fh .fh-crit { display: inline-flex; }
+.fh .fh-st { display: inline-flex; gap: 3px; }
+.fh .fh-titles { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+.ft { display: flex; gap: 5px; align-items: center; min-width: 0; font-size: 12px; color: var(--text-2); }
+.ft .pts { min-width: 15px; height: 15px; font-size: 9.5px; flex: none; }
+.ft .ft-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.ft.crit .ft-text { color: var(--crit-text); font-weight: 600; }
+.ft.none { color: var(--text-3); font-style: italic; }
+.fh .fh-dims { display: flex; gap: 3px; justify-content: flex-end; flex-wrap: wrap; }
+.fh .caret { color: var(--text-3); font-size: 11px; transition: transform .12s; }
+.frow.open .caret { transform: rotate(90deg); }
+.frow.tier-mechanical .fpath .base { font-weight: 500; color: var(--text-2); }
+@media (max-width: 900px) {
+  .fh { grid-template-columns: 26px 70px 36px 42px minmax(0, 1fr) 12px; }
+  .fh .fh-titles, .fh .fh-dims { grid-column: 2 / -1; justify-content: flex-start; }
+}
+@media (max-width: 600px) {
+  .fh .fh-path { grid-column: 1 / -1; grid-row: 2; }
+  .fh .fh-path .base { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .fh .fh-titles, .fh .fh-dims { grid-column: 1 / -1; }
+}
+
+/* expanded detail */
+.fd { padding: 12px 14px 14px 16px; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 18px; background: var(--surface); }
+@media (max-width: 1000px) { .fd { grid-template-columns: minmax(0, 1fr); } }
+.fd .blk + .blk { margin-top: 14px; }
+.fd .bh { font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--text-3); margin-bottom: 5px; display: flex; gap: 8px; align-items: center; }
+.fd .role { font-size: 13px; color: var(--text); }
+.fd .full { grid-column: 1 / -1; }
+.meta-g { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 4px 10px; font-size: 12px; align-items: baseline; }
+.meta-g > .k { color: var(--text-3); }
+.meta-g > .v { min-width: 0; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.meta-g .warn { color: var(--warn); font-weight: 600; }
+.meta-g .good { color: var(--ok); font-weight: 600; }
+.mini-list { font-family: var(--mono); font-size: 11.5px; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.mini-list span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.fc { border: 1px solid var(--border); border-left: 4px solid var(--p3); border-radius: 5px; padding: 8px 10px; background: var(--surface); }
+.fc + .fc { margin-top: 8px; }
+.fc.inferred { border-left-style: dashed; }
+.fc.crit { border-left-color: var(--crit); background: linear-gradient(90deg, var(--crit-bg), var(--surface) 55%); }
+.fc-h { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.fc-title { font-weight: 650; font-size: 13px; min-width: 0; }
+.fc.inferred .fc-title { font-style: italic; }
+.fc-h .spacer { flex: 1; }
+.fc-meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 3px; font-size: 11px; color: var(--text-3); }
+.fc-meta code { font-size: 10.5px; color: var(--text-3); }
+.fc-reason { margin-top: 5px; font-size: 12.5px; color: var(--text); }
+.fc-ev { margin-top: 6px; }
+.fc-cons { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.fc-cons .chip { font-size: 11.5px; background: var(--surface-2); }
+.fc-cons .chip::before { content: "\2192"; color: var(--text-3); }
+.fc-lim { margin-top: 5px; font-size: 11.5px; color: var(--text-3); display: flex; gap: 5px; }
+.fc-lim::before { content: "\26A0"; color: var(--warn); }
+.verify { list-style: none; padding: 0; margin: 0; }
+.verify li { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; font-size: 12.5px; }
+.verify input { margin-top: 2px; flex: none; }
+.verify li.done label { color: var(--text-3); text-decoration: line-through; }
+.diffbox { margin-top: 4px; }
+.diffbox > summary { font-size: 12px; font-weight: 600; color: var(--text-2); padding: 4px 0; }
+
+/* groups & excluded */
+.grp { border-top: 1px solid var(--border); padding: 7px 12px; }
+.grp:first-child { border-top: 0; }
+.grp > summary { font-size: 12.5px; }
+.grp .gk { font-family: var(--mono); font-size: 11px; color: var(--text-3); }
+.grp .gd { font-weight: 600; }
+.grp .gn { margin-left: auto; color: var(--text-3); font-size: 11.5px; white-space: nowrap; }
+.grp .gbody { padding: 6px 0 2px 16px; }
+.grp .sample { font: 11.5px/1.5 var(--mono); background: var(--surface-2); border-radius: 4px; padding: 4px 8px; white-space: pre; overflow-x: auto; margin-bottom: 6px; }
+.grp .sample.del { background: var(--del-bg); color: var(--del-fg); }
+.grp .sample.add { background: var(--add-bg); color: var(--add-fg); }
+.grp .gfiles { columns: 2 340px; column-gap: 20px; }
+.grp .gfiles a { display: block; cursor: pointer; break-inside: avoid; padding: 1px 0; }
+.excl td.p { font-family: var(--mono); font-size: 11.5px; word-break: break-all; }
+.excl td.r { color: var(--text-2); }
+</style>
+</head>
+<body>
+<div class="page" id="app"><noscript><p style="padding:20px">This report renders with JavaScript. Enable it to view the report.</p></noscript></div>
+<script type="application/json" id="cra-data">@@DATA_JSON@@</script>
+<script type="application/json" id="cra-diffs">@@DIFFS_JSON@@</script>
+<script>
+@@COMPONENTS_JS@@
+</script>
+<script>
+(function () {
+  'use strict';
+  var C = window.CRA, h = C.h, arr = C.arr, obj = C.obj, str = C.str, num = C.num, strs = C.strs;
+  var app = document.getElementById('app');
+  var raw = C.readJson('cra-data');
+  if (!raw || raw.__error || typeof raw !== 'object') {
+    C.fatal(app, raw && raw.__error ? 'The embedded analysis is not valid JSON (' + raw.__error + ').' : 'No analysis data is embedded.');
+    return;
+  }
+  var A = obj(raw);
+  var D = obj(C.readJson('cra-diffs'));
+  var DIFFS = obj(D.files), DMETA = obj(D.meta);
+  C.initTooltip();
+
+  /* ================================================================ */
+  /* normalise                                                        */
+  /* ================================================================ */
+  var change = obj(A.change), stats = obj(change.stats), sources = obj(change.sources), verdict = obj(A.verdict);
+  var reportKey = 'cra:' + str(A.report_dir || A.generated_at || 'report') + ':';
+  var allFiles = [], findingById = {}, byPath = {};
+  arr(A.files).forEach(function (rawF, idx) {
+    var f = obj(rawF);
+    if (!f.path) return;
+    var findings = arr(f.findings).map(obj).filter(function (x) { return Object.keys(x).length > 0; });
+    findings.forEach(function (x) { x.points = C.clampPts(x.points); x.critical = !!x.critical; });
+    findings.sort(function (a, b) { return (b.critical ? 1 : 0) - (a.critical ? 1 : 0) || b.points - a.points; });
+    var dims = {};
+    var rd = obj(f.dimensions);
+    Object.keys(rd).forEach(function (k) { if (rd[k] != null) dims[k] = C.clampPts(rd[k]); });
+    findings.forEach(function (x) {
+      var d = str(x.dimension) || 'unspecified';
+      dims[d] = Math.max(dims[d] == null ? 0 : dims[d], x.points);
+    });
+    var maxPts = 0;
+    Object.keys(dims).forEach(function (k) { maxPts = Math.max(maxPts, dims[k]); });
+    var scoreRaw = Number(f.score);
+    var F = {
+      raw: f, idx: idx, path: str(f.path), findings: findings, dims: dims, maxPts: maxPts,
+      score: f.score != null && isFinite(scoreRaw) ? scoreRaw : findings.reduce(function (a, x) { return a + x.points; }, 0),
+      critical: !!f.critical || findings.some(function (x) { return x.critical; }),
+      size: num(f.added_lines) + num(f.deleted_lines),
+      rank: f.rank != null && isFinite(Number(f.rank)) ? Number(f.rank) : null,
+      severity: f.severity != null && isFinite(Number(f.severity)) ? Number(f.severity) : maxPts,
+      tier: str(f.tier) || 'light', status: str(f.status), untracked: !!f.untracked,
+      module: str(f.module) || '(no module)'
+    };
+    F.search = [F.path, str(f.old_path), strs(f.symbols).join(' '), str(f.role),
+      findings.map(function (x) { return [x.title, x.reason, x.rule_id, strs(x.affected_symbols).join(' ')].map(str).join(' '); }).join(' ')
+    ].join('\n').toLowerCase();
+    findings.forEach(function (x) { if (x.id != null) findingById[str(x.id)] = { finding: x, file: F }; });
+    if (!byPath[F.path]) byPath[F.path] = F;
+    allFiles.push(F);
+  });
+  var humanSet = {};
+  strs(obj(A.verdict).human_files).forEach(function (p) { humanSet[p] = true; });
+  allFiles.forEach(function (F) { F.human = !!humanSet[F.path]; });
+  var excluded = allFiles.filter(function (F) { return F.tier === 'excluded'; });
+  var listFiles = allFiles.filter(function (F) { return F.tier !== 'excluded'; });
+  var ranked = listFiles.slice().sort(C.rankCompare);
+  ranked.forEach(function (F, i) { F.rank = i + 1; });
+
+  // flows
+  var flows = [], flowOf = {};
+  arr(A.flows).map(obj).forEach(function (fl, i) {
+    flows.push({ id: str(fl.id || ('flow-' + (i + 1))), name: str(fl.name || fl.id || ('Flow ' + (i + 1))), description: str(fl.description),
+      paths: strs(fl.files), maxRaw: fl.max_score, files: [] });
+  });
+  flows.forEach(function (fl) {
+    fl.paths.forEach(function (p) { var F = byPath[p]; if (F && F.tier !== 'excluded' && !flowOf[p]) { flowOf[p] = fl; fl.files.push(F); } });
+  });
+  listFiles.forEach(function (F) {
+    if (flowOf[F.path] || !F.raw.flow) return;
+    for (var i = 0; i < flows.length; i++) if (flows[i].id === str(F.raw.flow)) { flowOf[F.path] = flows[i]; flows[i].files.push(F); break; }
+  });
+  flows.forEach(function (fl) {
+    var m = Number(fl.maxRaw);
+    fl.max = fl.maxRaw != null && isFinite(m) ? m : fl.files.reduce(function (a, F) { return Math.max(a, F.score); }, 0);
+    fl.critical = fl.files.some(function (F) { return F.critical; });
+  });
+  flows = flows.filter(function (fl) { return fl.files.length; });
+  flows.sort(function (a, b) { return b.max - a.max || (b.critical ? 1 : 0) - (a.critical ? 1 : 0) || (a.name < b.name ? -1 : 1); });
+  var otherFiles = ranked.filter(function (F) { return !flowOf[F.path] && F.tier !== 'mechanical'; });
+  var mechFiles = ranked.filter(function (F) { return !flowOf[F.path] && F.tier === 'mechanical'; });
+
+  /* ================================================================ */
+  /* top bar                                                          */
+  /* ================================================================ */
+  var metaBits = [];
+  if (change.branch) metaBits.push(h('span', { 'data-tip': 'Branch' }, '⎇ ' + str(change.branch)));
+  if (change.boundary || change.base_ref) metaBits.push(h('span', { 'data-tip': 'Change boundary' },
+    str(change.boundary || 'boundary') + (change.base_ref ? ' vs ' + str(change.base_ref) : '') + (change.base_commit ? ' @ ' + str(change.base_commit).slice(0, 10) : '')));
+  if (A.generated_at) metaBits.push(h('span', { 'data-tip': 'Generated at' }, str(A.generated_at).replace('T', ' ')));
+  app.appendChild(h('header', { class: 'topbar' }, [
+    h('span', { class: 'brand' }, 'Code Review Assistant'),
+    h('span', { class: 'title' }, 'Impact report'),
+    h('span', { class: 'meta' }, metaBits),
+    h('span', { class: 'spacer' }),
+    h('span', { class: 'muted', style: { 'font-size': '11px' } }, [h('span', { class: 'kbd' }, '/'), ' search  ', h('span', { class: 'kbd' }, 'j'), h('span', { class: 'kbd' }, 'k'), ' move  ', h('span', { class: 'kbd' }, 'o'), ' open']),
+    C.themeToggle()
+  ]));
+
+  /* ================================================================ */
+  /* verdict banner                                                   */
+  /* ================================================================ */
+  var mode = C.mode(verdict.mode);
+  var scale = h('div', { class: 'mscale' });
+  C.MODES.forEach(function (m) {
+    var on = m.id === mode.id;
+    scale.appendChild(h('div', { 'data-tip': m.label + '\n' + m.hint }, [
+      h('div', { class: 'ms' + (on ? ' on' : ''), style: { '--c': 'var(--m-' + m.key + ')' } }),
+      h('div', { class: 'sl' + (on ? ' on' : '') }, m.short)
+    ]));
+  });
+
+  var decIds = strs(verdict.deciding_findings);
+  var decEls = decIds.map(function (id) {
+    var hit = findingById[id];
+    if (!hit) return h('span', { class: 'chip', 'data-tip': 'Finding ' + id + ' is not present in the file list' }, id);
+    var x = hit.finding, inf = x.confidence !== 'verified';
+    return h('button', { type: 'button', class: 'dchip-f' + (x.critical ? ' crit' : '') + (inf ? ' inferred' : ''),
+      'data-tip': str(x.title) + '\n' + hit.file.path + '\n' + C.dimLabel(x.dimension) + ' · ' + x.points + ' pts · ' + (inf ? 'inferred' : 'verified') + (x.critical ? ' · CRITICAL' : '') + '\nClick to open the file',
+      onclick: function () { jumpTo(hit.file, x); } }, [
+      C.pts(x.points), h('span', { class: 'ddot', style: { '--dc': C.dimColor(x.dimension) } }),
+      h('span', { class: 't' }, str(x.title) || str(x.rule_id) || id),
+      h('span', { class: 'fn' }, C.basename(hit.file.path))
+    ]);
+  });
+
+  var humanFiles = allFiles.filter(function (F) { return F.human; });
+  var critCount = listFiles.filter(function (F) { return F.critical; }).length;
+  var st = {
+    files: stats.files != null ? num(stats.files) : allFiles.length,
+    add: stats.added_lines != null ? num(stats.added_lines) : allFiles.reduce(function (a, F) { return a + num(F.raw.added_lines); }, 0),
+    del: stats.deleted_lines != null ? num(stats.deleted_lines) : allFiles.reduce(function (a, F) { return a + num(F.raw.deleted_lines); }, 0),
+    untracked: stats.untracked != null ? num(stats.untracked) : allFiles.filter(function (F) { return F.untracked; }).length,
+    modules: stats.modules != null ? num(stats.modules) : Object.keys(listFiles.reduce(function (a, F) { a[F.module] = 1; return a; }, {})).length,
+    excluded: stats.excluded != null ? num(stats.excluded) : excluded.length,
+    mechanical: stats.mechanical != null ? num(stats.mechanical) : listFiles.filter(function (F) { return F.tier === 'mechanical'; }).length
+  };
+  var tot = st.add + st.del || 1;
+  function stat(k, v, extra, cls, tip) { return h('div', { class: 'stat ' + (cls || ''), 'data-tip': tip || null }, [h('div', { class: 'k' }, k), h('div', { class: 'v' }, v), extra || null]); }
+  var statsEl = h('div', { class: 'stats' }, [
+    stat('Files', C.fmt(st.files)),
+    stat('Lines', [h('span', { class: 'add' }, '+' + C.fmt(st.add)), ' ', h('span', { class: 'del' }, '−' + C.fmt(st.del))],
+      h('div', { class: 'lbar' }, [h('span', { class: 'a', style: { width: (st.add / tot * 100) + '%' } }), h('span', { class: 'd', style: { width: (st.del / tot * 100) + '%' } })]), 'wide', 'Added / deleted lines'),
+    stat('Critical', C.fmt(critCount), null, critCount ? 'crit' : '', 'Files with a critical finding'),
+    humanFiles.length ? stat('Human reads', C.fmt(humanFiles.length), null, 'human', 'Files the policy assigns to a human reader') : null,
+    stat('Untracked', C.fmt(st.untracked), null, '', 'New files not yet known to git'),
+    stat('Modules', C.fmt(st.modules)),
+    stat('Mechanical', C.fmt(st.mechanical), null, '', 'Files assessed as mechanical changes'),
+    stat('Excluded', C.fmt(st.excluded), null, '', 'Files excluded from analysis (listed at the bottom)')
+  ]);
+
+  app.appendChild(h('section', { class: 'verdict m-' + mode.key, id: 'verdict' }, [
+    h('div', { class: 'v-mode' }, [
+      h('div', { class: 'lbl' }, 'Review mode'),
+      h('div', { class: 'name' }, mode.label),
+      verdict.mode ? h('code', null, str(verdict.mode)) : null,
+      scale,
+      mode.hint ? h('div', { class: 'hint' }, mode.hint) : null
+    ]),
+    h('div', { class: 'v-body' }, [
+      h('div', { class: 'v-rule' }, [h('span', null, 'Policy rule fired'), verdict.policy_rule ? h('code', null, str(verdict.policy_rule)) : h('span', { class: 'muted' }, 'not recorded')]),
+      verdict.explanation ? h('div', { class: 'v-expl' }, str(verdict.explanation)) : null,
+      decEls.length ? h('div', { class: 'v-dec' }, decEls) : h('div', { class: 'muted' }, 'No deciding findings recorded.'),
+      humanFiles.length ? h('div', { class: 'v-human' }, [h('span', { class: 'human-tag' }, 'human'), h('span', { class: 'muted' }, 'reads ' + CRA.plural(humanFiles.length, 'file') + ':'),
+        humanFiles.map(function (F) { return h('a', { class: 'chip click', 'data-tip': F.path + '\nClick to open', onclick: function () { jumpTo(F); } }, C.basename(F.path)); })]) : null,
+      statsEl
+    ])
+  ]));
+
+  /* context strip: rulesets, sources, limitations */
+  function pathChips(list, cls) {
+    var l = strs(list);
+    if (!l.length) return [h('span', { class: 'muted' }, '—')];
+    return l.map(function (p) { return h('span', { class: 'chip ' + (cls || ''), 'data-tip': p }, C.basename(p) || p); });
+  }
+  var limitations = strs(A.limitations);
+  app.appendChild(h('div', { class: 'ctx' }, [
+    C.card('Inputs', null, h('div', { class: 'kv' }, [
+      h('span', { class: 'k' }, 'Rulesets'), h('span', { class: 'v' }, strs(change.rulesets).length ? strs(change.rulesets).map(function (r) { return h('span', { class: 'chip mono' }, r); }) : h('span', { class: 'muted' }, 'none matched')),
+      h('span', { class: 'k' }, 'Spec'), h('span', { class: 'v' }, pathChips(sources.spec, 'ok')),
+      h('span', { class: 'k' }, 'Plan'), h('span', { class: 'v' }, pathChips(sources.plan, 'ok')),
+      h('span', { class: 'k' }, 'Conventions'), h('span', { class: 'v' }, pathChips(sources.conventions, 'ok')),
+      strs(sources.missing).length ? h('span', { class: 'k' }, 'Missing') : null,
+      strs(sources.missing).length ? h('span', { class: 'v' }, strs(sources.missing).map(function (m) { return h('span', { class: 'chip miss', 'data-tip': 'Source not found: capability reduced' }, m); })) : null
+    ])),
+    C.card('Limitations', limitations.length ? CRA.plural(limitations.length, 'item') : null,
+      limitations.length ? h('ul', { class: 'ilist lim' }, limitations.map(function (l) { return h('li', null, [h('span', { class: 'ico' }, '⚠'), h('span', null, l)]); }))
+        : h('div', { class: 'empty' }, 'No limitations reported.'))
+  ]));
+
+  /* ================================================================ */
+  /* dimension profile + treemap                                      */
+  /* ================================================================ */
+  var dimStats = {};
+  C.DIMENSIONS.forEach(function (d) { dimStats[d.id] = { max: 0, files: 0, crit: 0, any: false }; });
+  var famStats = {};
+  C.FAMILIES.forEach(function (fm) { famStats[fm.id] = { max: 0, files: 0, crit: 0, any: false }; });
+  listFiles.forEach(function (F) {
+    var famSeen = {};
+    Object.keys(F.dims).forEach(function (d) {
+      var ds = dimStats[d]; if (!ds) return;
+      ds.any = true; ds.files++; ds.max = Math.max(ds.max, F.dims[d]);
+      var fam = C.DIM[d].family, fs = famStats[fam];
+      fs.any = true; fs.max = Math.max(fs.max, F.dims[d]);
+      if (!famSeen[fam]) { famSeen[fam] = 1; fs.files++; }
+    });
+    F.findings.forEach(function (x) {
+      if (!x.critical || !dimStats[x.dimension]) return;
+      dimStats[x.dimension].crit++; famStats[C.DIM[x.dimension].family].crit++;
+    });
+  });
+  var maxDimFiles = 1;
+  C.DIMENSIONS.forEach(function (d) { maxDimFiles = Math.max(maxDimFiles, dimStats[d.id].files); });
+  function pips(p, any) {
+    var el = h('span', { class: 'pips' });
+    for (var i = 1; i <= 5; i++) el.appendChild(h('i', { class: any && i <= p ? 'p' + p : null }));
+    el.appendChild(h('b', null, any ? String(p) : '–'));
+    return el;
+  }
+  function fbar(ds, maxFiles) {
+    return h('span', { class: 'fbar' }, [
+      h('span', { class: 'bar' }, h('span', { style: { width: (ds.files / maxFiles * 100) + '%' } })),
+      h('span', { class: 'n' }, String(ds.files)),
+      h('span', { class: 'cr', 'data-tip': ds.crit ? ds.crit + ' critical finding' + (ds.crit === 1 ? '' : 's') : '' }, ds.crit ? [h('span', { class: 'crit-dot' }), String(ds.crit)] : '')
+    ]);
+  }
+  var profRows = {};
+  var prof = h('div', { class: 'prof' }, [
+    h('span', { class: 'ph' }, 'Family / dimension'), h('span', { class: 'ph' }, 'Max points'), h('span', { class: 'ph' }, 'Files · critical')
+  ]);
+  C.FAMILIES.forEach(function (fm) {
+    var fs = famStats[fm.id];
+    prof.appendChild(h('div', { class: 'r fam' + (fs.any ? '' : ' none'), 'data-tip': fm.label + ': ' + (fs.any ? 'max ' + fs.max + ' pts in ' + CRA.plural(fs.files, 'file') : 'no findings') },
+      [h('span', { class: 'lab' }, [h('span', { class: 'sw', style: { '--dc': 'var(--f-' + fm.id + ')' } }), fm.label]), pips(fs.max, fs.any), fbar(fs, Math.max(maxDimFiles, fs.files))]));
+    C.DIMENSIONS.filter(function (d) { return d.family === fm.id; }).forEach(function (d) {
+      var ds = dimStats[d.id];
+      var r = h('div', { class: 'r dim' + (ds.any ? '' : ' none'), 'data-tip': d.label + ': ' + (ds.any ? 'max ' + ds.max + ' pts · ' + CRA.plural(ds.files, 'file') : 'no findings') + '\nClick to filter the file list',
+        onclick: function () { setFilter({ dim: state.dim === d.id ? '' : d.id }, true); } },
+        [h('span', { class: 'lab' }, [h('span', { class: 'sw', style: { '--dc': C.dimColor(d.id) } }), d.label]), pips(ds.max, ds.any), fbar(ds, maxDimFiles)]);
+      profRows[d.id] = r;
+      prof.appendChild(r);
+    });
+  });
+
+  var tmHost = h('div', { class: 'tm-host' });
+  var modules = {};
+  listFiles.forEach(function (F) {
+    var m = modules[F.module] || (modules[F.module] = { id: F.module, label: F.module, value: 0, maxPts: 0, critical: false, children: [] });
+    var v = Math.max(1, F.size);
+    m.value += v; m.maxPts = Math.max(m.maxPts, F.maxPts); m.critical = m.critical || F.critical;
+    m.children.push({ id: F.idx, label: C.basename(F.path), value: v, maxPts: F.maxPts, critical: F.critical,
+      tip: F.path + '\n+' + num(F.raw.added_lines) + ' −' + num(F.raw.deleted_lines) + ' lines · score ' + F.score + ' · max ' + F.maxPts + ' pts' + (F.critical ? ' · CRITICAL' : '') + '\nClick to open' });
+  });
+  var moduleList = Object.keys(modules).map(function (k) { return modules[k]; });
+  function drawTreemap() {
+    tmHost.innerHTML = '';
+    if (!moduleList.length) { tmHost.appendChild(h('div', { class: 'empty' }, 'No files to show.')); return; }
+    var w = tmHost.clientWidth || 600;
+    tmHost.appendChild(C.renderTreemap(moduleList, {
+      width: w, height: Math.max(220, Math.min(360, Math.round(w * 0.5))), selected: state.module,
+      onGroup: function (id) { setFilter({ module: state.module === id ? '' : id }, true); },
+      onItem: function (idx) { var F = allFiles.filter(function (x) { return x.idx === idx; })[0]; if (F) jumpTo(F); }
+    }));
+  }
+
+  app.appendChild(h('div', { class: 'grid grid-5-7', style: { 'margin-top': '14px' } }, [
+    C.card('Dimension profile', 'highest points per area', prof, { tools: C.ptsLegend() }),
+    C.card('Modules', 'area = changed lines · colour = highest points · click to filter',
+      [tmHost, h('div', { class: 'tm-foot' }, [h('span', null, [h('span', { class: 'crit-dot' }), ' red outline = critical file · excluded files not shown']), C.ptsLegend()])])
+  ]));
+
+  /* ================================================================ */
+  /* heatmap + AI focus                                               */
+  /* ================================================================ */
+  var withFindings = ranked.filter(function (F) { return F.findings.length > 0; });
+  var top30 = withFindings.slice(0, 30);
+  var hm = h('div', { class: 'hm' });
+  var dhEls = {};
+  hm.appendChild(h('span'));
+  C.FAMILIES.forEach(function (fm) {
+    var n = C.DIMENSIONS.filter(function (d) { return d.family === fm.id; }).length;
+    hm.appendChild(h('span', { class: 'fam', style: { 'grid-column': 'span ' + n, '--fc': 'var(--f-' + fm.id + ')' }, 'data-tip': fm.label }, fm.short || fm.label));
+  });
+  hm.appendChild(h('span'));
+  C.DIMENSIONS.forEach(function (d) {
+    var el = h('span', { class: 'dh', 'data-tip': d.label + '\nClick to filter the file list', onclick: function () { setFilter({ dim: state.dim === d.id ? '' : d.id }, true); } },
+      [h('span', { class: 'ddot', style: { '--dc': C.dimColor(d.id) } }), d.short]);
+    dhEls[d.id] = el;
+    hm.appendChild(h('span', { style: { display: 'flex' } }, el));
+  });
+  top30.forEach(function (F) {
+    var go = function () { jumpTo(F); };
+    hm.appendChild(h('span', { class: 'rl', 'data-tip': F.path + '\nscore ' + F.score + (F.critical ? ' · CRITICAL' : ''), onclick: go }, [
+      h('span', { class: 'rk' }, String(F.rank)), F.critical ? h('span', { class: 'crit-dot' }) : null, h('span', { class: 'nm' }, C.basename(F.path))
+    ]));
+    C.DIMENSIONS.forEach(function (d) {
+      var p = F.dims[d.id];
+      if (p == null) { hm.appendChild(h('span', { class: 'c e' })); return; }
+      var crit = F.findings.some(function (x) { return x.critical && x.dimension === d.id; });
+      hm.appendChild(h('span', { class: 'c p' + p + (crit ? ' crit' : ''), onclick: go, 'data-tip': C.basename(F.path) + '\n' + d.label + ': ' + p + ' pts' + (crit ? ' · critical' : '') }, String(p)));
+    });
+  });
+  var focus = strs(A.ai_review_focus);
+  var hmCard = top30.length ? C.card('Heatmap', (top30.length < withFindings.length ? 'top 30 of ' + withFindings.length : withFindings.length) + ' files with findings × 12 dimensions',
+    [h('div', { class: 'hm-wrap' }, hm), h('div', { class: 'hm-foot' }, [C.ptsLegend(), h('span', null, [h('span', { class: 'cb' }), ' critical finding in this dimension']), h('span', null, 'empty = no finding')])]) : null;
+  var focusCard = focus.length ? C.card('AI review focus', 'hand this list to an AI reviewer',
+    h('ol', { class: 'olist focus' }, focus.map(function (x) { return h('li', null, x); })),
+    { tools: C.copyBtn(function () { return focus.map(function (x) { return '- ' + x; }).join('\n'); }, 'Copy all') }) : null;
+  var hmRow = hmCard || focusCard ? h('div', { class: 'grid', style: { 'margin-top': '14px', 'grid-template-columns': hmCard && focusCard ? 'minmax(0, 7fr) minmax(0, 4fr)' : 'minmax(0, 1fr)' } }, [hmCard, focusCard]) : null;
+  if (hmRow) app.appendChild(hmRow);
+  if (hmCard && focusCard) {
+    var mq = window.matchMedia('(max-width: 980px)');
+    var applyMq = function () { hmRow.style.gridTemplateColumns = mq.matches ? 'minmax(0, 1fr)' : 'minmax(0, 7fr) minmax(0, 4fr)'; };
+    if (mq.addEventListener) mq.addEventListener('change', applyMq); else if (mq.addListener) mq.addListener(applyMq);
+    applyMq();
+  }
+
+  /* ================================================================ */
+  /* plan drift                                                       */
+  /* ================================================================ */
+  var drift = A.plan_drift && typeof A.plan_drift === 'object' ? A.plan_drift : null;
+  if (drift) {
+    var unpl = strs(drift.unplanned_files), pnc = strs(drift.planned_not_changed), prefs = obj(drift.planned_refs);
+    var planKinds = {};
+    strs(sources.plan).forEach(function (p) { planKinds[p] = 'plan'; });
+    strs(sources.spec).forEach(function (p) { planKinds[p] = 'spec'; });
+    var fileLink = function (p) {
+      var F = byPath[p];
+      return F ? h('a', { class: 'fl', onclick: function () { jumpTo(F); } }, C.pathEl(p)) : C.pathEl(p);
+    };
+    app.appendChild(h('div', { style: { 'margin-top': '14px' } }, C.card('Plan vs implementation', unpl.length + pnc.length ? null : 'no drift', h('div', { class: 'drift' }, [
+      h('div', null, [h('h3', null, ['Changed, not in the plan', h('span', { class: 'badge' }, String(unpl.length))]),
+        unpl.length ? h('ul', { class: 'ilist' }, unpl.map(function (p) { var F = byPath[p]; return h('li', null, [h('span', { class: 'ico' }, '+'), fileLink(p), F && F.critical ? C.critFlag() : null, F ? h('span', { class: 'score p' + F.maxPts, style: { 'margin-left': 'auto', height: '18px', 'min-width': '24px', 'font-size': '11px' } }, String(F.score)) : null]); }))
+          : h('div', { class: 'empty' }, 'Every changed file is covered by the plan.')]),
+      h('div', null, [h('h3', null, ['Planned, not changed', h('span', { class: 'badge' }, String(pnc.length))]),
+        pnc.length ? h('ul', { class: 'ilist' }, pnc.map(function (p) { return h('li', null, [h('span', { class: 'ico' }, '∅'), C.pathEl(p), prefs[p] ? h('span', { style: { 'margin-left': 'auto' } }, C.refEl(prefs[p], planKinds)) : null]); }))
+          : h('div', { class: 'empty' }, 'Every planned file was changed.')])
+    ]))));
+  }
+
+  /* ================================================================ */
+  /* file list                                                        */
+  /* ================================================================ */
+  var state = { view: 'flows', q: '', dim: '', minPts: 0, tier: '', critOnly: false, status: '', untracked: false, module: '', humanOnly: false };
+  var DEFAULTS = { q: '', dim: '', minPts: 0, tier: '', critOnly: false, status: '', untracked: false, module: '', humanOnly: false };
+  try { var sv = localStorage.getItem('cra-view'); if (sv === 'ranking' || sv === 'flows') state.view = sv; } catch (e) { /* ignore */ }
+  if (!flows.length) state.view = 'ranking';
+
+  var search = h('input', { class: 'input search', type: 'search', placeholder: 'Search path, symbol, finding…  ( / )', 'aria-label': 'Search files' });
+  var selDim = h('select', { class: 'select', 'aria-label': 'Dimension' }, [h('option', { value: '' }, 'All dimensions')].concat(
+    C.FAMILIES.map(function (fm) {
+      return h('optgroup', { label: fm.label }, C.DIMENSIONS.filter(function (d) { return d.family === fm.id; }).map(function (d) { return h('option', { value: d.id }, d.label); }));
+    })));
+  var selPts = h('select', { class: 'select', 'aria-label': 'Minimum points' }, [0, 1, 2, 3, 4, 5].map(function (p) { return h('option', { value: String(p) }, p === 0 ? 'Any points' : '≥ ' + p + ' pts'); }));
+  var selTier = h('select', { class: 'select', 'aria-label': 'Tier' }, [['', 'All tiers'], ['deep', 'Deep'], ['light', 'Light'], ['mechanical', 'Mechanical']].map(function (o) { return h('option', { value: o[0] }, o[1]); }));
+  var selStatus = h('select', { class: 'select', 'aria-label': 'Status' }, [['', 'Any status'], ['added', 'Added'], ['modified', 'Modified'], ['deleted', 'Deleted'], ['renamed', 'Renamed']].map(function (o) { return h('option', { value: o[0] }, o[1]); }));
+  var cbCrit = h('input', { type: 'checkbox' }), cbUntr = h('input', { type: 'checkbox' }), cbHuman = h('input', { type: 'checkbox' });
+  var viewSeg = h('div', { class: 'seg', role: 'group', 'aria-label': 'View' });
+  var btnFlows = h('button', { type: 'button', 'data-tip': 'Files grouped by execution flow', onclick: function () { setView('flows'); } }, 'Flows');
+  var btnRank = h('button', { type: 'button', 'data-tip': 'Critical first, then most severe finding, then score', onclick: function () { setView('ranking'); } }, 'Ranking');
+  viewSeg.appendChild(btnFlows); viewSeg.appendChild(btnRank);
+  if (!flows.length) { btnFlows.disabled = true; btnFlows.setAttribute('data-tip', 'No flows in this analysis'); }
+  var countEl = h('span', { class: 'count' });
+  var activeEl = h('div', { class: 'active-filters' });
+  var resetBtn = h('button', { class: 'btn sm ghost', type: 'button', onclick: function () { setFilter(DEFAULTS); } }, 'Reset filters');
+
+  search.addEventListener('input', C.debounce(function () { setFilter({ q: search.value }); }, 90));
+  selDim.addEventListener('change', function () { setFilter({ dim: selDim.value }); });
+  selPts.addEventListener('change', function () { setFilter({ minPts: +selPts.value }); });
+  selTier.addEventListener('change', function () { setFilter({ tier: selTier.value }); });
+  selStatus.addEventListener('change', function () { setFilter({ status: selStatus.value }); });
+  cbCrit.addEventListener('change', function () { setFilter({ critOnly: cbCrit.checked }); });
+  cbUntr.addEventListener('change', function () { setFilter({ untracked: cbUntr.checked }); });
+  cbHuman.addEventListener('change', function () { setFilter({ humanOnly: cbHuman.checked }); });
+
+  var listSection = h('section', { id: 'files' });
+  app.appendChild(h('div', { class: 'section-title', style: { 'margin-top': '26px' } }, [h('h2', null, 'Files'), h('span', { class: 'count' }, listFiles.length + ' analysed · ranked critical-first, then by severity, then by score')]));
+  var toolbar = h('div', { class: 'toolbar' }, [viewSeg, search, selDim, selPts, selTier, selStatus,
+    h('label', { class: 'check' }, [cbCrit, h('span', { class: 'crit-dot' }), 'Critical only']),
+    h('label', { class: 'check' }, [cbUntr, 'Untracked']),
+    humanFiles.length ? h('label', { class: 'check', 'data-tip': 'Files the policy assigns to a human reader' }, [cbHuman, 'Human files']) : null,
+    activeEl, resetBtn, countEl]);
+  app.appendChild(toolbar);
+  var skipped = strs(DMETA.skipped_budget);
+  if (DMETA.budget_exhausted || skipped.length) {
+    app.appendChild(h('div', { class: 'diffnote' }, 'Diff budget reached (' + +(num(DMETA.budget_bytes, 3e6) / 1e6).toFixed(1) + ' MB): ' + CRA.plural(skipped.length, 'diff') + ' not embedded. Each embedded diff is capped at ' + num(DMETA.cap_lines, 400) + ' lines.'));
+  }
+  app.appendChild(listSection);
+
+  // rows
+  var rows = {};
+  function topTitles(F) {
+    if (!F.findings.length) {
+      var t = F.tier === 'mechanical' ? 'mechanical' + (F.raw.mechanical_kind ? ': ' + str(F.raw.mechanical_kind) : '') : 'no findings';
+      return h('span', { class: 'ft none' }, t);
+    }
+    return F.findings.slice(0, 2).map(function (x) {
+      var inf = x.confidence !== 'verified';
+      return h('span', { class: 'ft' + (x.critical ? ' crit' : '') + (inf ? ' is-inferred' : ''), 'data-tip': str(x.title) + '\n' + C.dimLabel(x.dimension) + ' · ' + x.points + ' pts · ' + (inf ? 'inferred' : 'verified') },
+        [C.pts(x.points, ''), h('span', { class: 'ft-text' }, str(x.title) || str(x.rule_id) || 'finding')]);
+    });
+  }
+  function dimChips(F) {
+    var ks = Object.keys(F.dims).sort(function (a, b) { return F.dims[b] - F.dims[a]; });
+    var out = ks.slice(0, 3).map(function (k) { return C.dimChip(k, F.dims[k]); });
+    if (ks.length > 3) out.push(h('span', { class: 'dchip more', 'data-tip': ks.slice(3).map(function (k) { return C.dimLabel(k) + ': ' + F.dims[k]; }).join('\n') }, '+' + (ks.length - 3)));
+    return out;
+  }
+  function buildRow(F) {
+    var head = h('div', { class: 'fh', role: 'button', tabindex: '0', 'aria-expanded': 'false' }, [
+      h('span', { class: 'rank', 'data-tip': 'Rank ' + F.rank + ' of ' + ranked.length }, '#' + F.rank),
+      h('span', { class: 'fh-crit' }, [F.critical ? C.critFlag() : null, F.human ? h('span', { class: 'human-tag', 'data-tip': 'Policy: a human should read this file' }, 'human') : null]),
+      h('span', { class: 'score p' + F.maxPts, 'data-tip': 'Score ' + F.score + ' (sum of finding points)\nColour = highest finding: ' + F.maxPts + ' pts' }, String(F.score)),
+      h('span', { class: 'fh-st' }, [C.statusEl(F.status), F.untracked ? h('span', { class: 'untracked-tag', 'data-tip': 'Untracked: new file not yet in git' }, 'U') : null]),
+      C.pathEl(F.path, 'fh-path'),
+      h('span', { class: 'fh-titles' }, topTitles(F)),
+      h('span', { class: 'fh-dims' }, dimChips(F)),
+      h('span', { class: 'caret' }, '▸')
+    ]);
+    var body = h('div', { class: 'fbody', hidden: true });
+    var row = h('div', { class: 'frow tier-' + F.tier + (F.critical ? ' is-crit' : ''), id: 'file-' + F.idx }, [head, body]);
+    head.addEventListener('click', function (e) { if (e.target.closest('a,button,input')) return; setCurrent(row); toggle(F); });
+    row._F = F; row._head = head; row._body = body;
+    rows[F.idx] = row;
+    return row;
+  }
+
+  function toggle(F, open) {
+    var row = rows[F.idx];
+    if (!row) return;
+    if (open === undefined) open = row._body.hidden;
+    if (open && !row._built) { row._body.appendChild(buildDetail(F)); row._built = true; }
+    row._body.hidden = !open;
+    row.classList.toggle('open', open);
+    row._head.setAttribute('aria-expanded', String(open));
+  }
+
+  /* ---------- expanded detail (built lazily) ---------- */
+  var sourceKinds = {};
+  strs(sources.plan).forEach(function (p) { sourceKinds[p] = 'plan'; });
+  strs(sources.spec).forEach(function (p) { sourceKinds[p] = 'spec'; });
+
+  function buildDetail(F) {
+    var f = F.raw;
+    var left = h('div'), right = h('div');
+    // role
+    left.appendChild(h('div', { class: 'blk' }, [h('div', { class: 'bh' }, 'What this file is for'),
+      f.role ? h('p', { class: 'role' }, str(f.role)) : h('p', { class: 'empty' }, F.tier === 'mechanical' ? 'Assessed as part of a mechanical group; no per-file role.' : 'Role not available.')]));
+    // interaction diagram
+    var hasInter = f.interactions && typeof f.interactions === 'object';
+    if (hasInter || strs(f.fan_in_files).length) {
+      var dg = C.renderInteraction(f.interactions, {
+        center: C.basename(F.path), centerTip: F.path + (strs(f.symbols).length ? '\n' + strs(f.symbols).join(', ') : ''),
+        fanIn: f.fan_in != null ? num(f.fan_in) : null, fanInFiles: f.fan_in_files
+      });
+      left.appendChild(h('div', { class: 'blk' }, [h('div', { class: 'bh' }, ['Interactions', h('span', { class: 'legend' }, [h('span', { class: 'li' }, [h('span', { class: 'ln-sw' }), 'changed edge'])])]),
+        h('div', { class: 'dg-wrap fit' }, dg)]));
+    }
+    // meta
+    var meta = h('div', { class: 'meta-g' });
+    function mrow(k, v) { if (v == null || (Array.isArray(v) && !v.length)) return; meta.appendChild(h('span', { class: 'k' }, k)); meta.appendChild(h('span', { class: 'v' }, v)); }
+    mrow('Change', [C.statusEl(F.status), h('span', null, str(F.status) || 'unknown'), F.untracked ? h('span', { class: 'untracked-tag' }, 'untracked') : null,
+      h('span', { class: 'muted' }, '+' + C.fmt(f.added_lines) + ' −' + C.fmt(f.deleted_lines))]);
+    if (f.old_path) mrow('Renamed from', C.pathEl(f.old_path));
+    var fanFiles = strs(f.fan_in_files);
+    if (f.fan_in != null || fanFiles.length) {
+      mrow('Fan-in', [h('b', null, f.fan_in != null ? C.fmt(f.fan_in) : String(fanFiles.length)), h('span', { class: 'muted' }, 'referencing files'),
+        fanFiles.length ? h('details', { class: 'disc', style: { width: '100%' } }, [h('summary', { class: 'muted' }, 'show ' + Math.min(fanFiles.length, 50) + (fanFiles.length > 50 ? ' of ' + fanFiles.length : '')),
+          h('div', { class: 'mini-list' }, fanFiles.slice(0, 50).map(function (p) { return h('span', { 'data-tip': p }, p); }))]) : null]);
+    }
+    if (f.largest_added_block != null) {
+      var lab = num(f.largest_added_block);
+      mrow('Largest added', [h('span', { class: lab > 150 ? 'warn' : '' }, C.fmt(lab) + ' lines'), lab > 150 ? h('span', { class: 'muted' }, 'long contiguous block: drift risk') : null]);
+    }
+    var tests = strs(f.linked_tests);
+    if (f.is_test) mrow('Test file', h('span', { class: 'badge' }, 'test'));
+    else if (tests.length || f.test_changed != null) {
+      mrow('Linked tests', [
+        f.test_changed === true ? h('span', { class: 'good' }, '✓ changed') : f.test_changed === false ? h('span', { class: 'warn' }, '✕ not changed') : null,
+        tests.length ? h('div', { class: 'mini-list', style: { width: '100%' } }, tests.map(function (p) { return h('span', { 'data-tip': p }, C.basename(p)); })) : h('span', { class: 'warn' }, 'none found')
+      ]);
+    }
+    var prefs = strs(f.plan_refs);
+    if (prefs.length) mrow('Plan', prefs.map(function (r) { return C.refEl(r, sourceKinds); }));
+    else if (f.in_plan === false) mrow('Plan', h('span', { class: 'warn' }, 'not in plan'));
+    else if (f.in_plan === true) mrow('Plan', h('span', { class: 'good' }, 'in plan'));
+    var fl = flowOf[F.path];
+    if (fl) mrow('Flow', h('span', null, fl.name));
+    mrow('Tier', [h('span', { class: 'badge' }, F.tier), strs(f.tier_reasons).length ? h('span', { class: 'muted' }, strs(f.tier_reasons).join(' · ')) : null,
+      f.mechanical_kind ? h('span', { class: 'badge outline' }, str(f.mechanical_kind)) : null]);
+    if (f.semantic_done === false && F.tier !== 'mechanical') mrow('Semantic pass', h('span', { class: 'warn' }, 'not done: model findings missing'));
+    if (f.language || f.ruleset) mrow('Ruleset', [f.language ? h('span', { class: 'badge outline' }, str(f.language)) : null, f.ruleset ? h('code', null, str(f.ruleset)) : h('span', { class: 'warn' }, 'base rules only')]);
+    if (strs(f.symbols).length) mrow('Symbols', h('span', { class: 'mono', style: { 'word-break': 'break-all' } }, strs(f.symbols).join(', ')));
+    left.appendChild(h('div', { class: 'blk' }, [h('div', { class: 'bh' }, 'Facts'), meta]));
+
+    // findings
+    right.appendChild(h('div', { class: 'blk' }, [h('div', { class: 'bh' }, ['Why review it', h('span', { class: 'badge' }, String(F.findings.length))]),
+      F.findings.length ? F.findings.map(function (x) { return findingCard(x, F); }) : h('div', { class: 'empty' }, 'No findings on this file.')]));
+    // verify
+    var wtv = strs(f.what_to_verify);
+    if (wtv.length) {
+      right.appendChild(h('div', { class: 'blk' }, [h('div', { class: 'bh' }, 'What to verify'),
+        h('ul', { class: 'verify' }, wtv.map(function (t, i) {
+          var key = reportKey + F.path + ':v' + i, id = 'v-' + F.idx + '-' + i;
+          var cb = h('input', { type: 'checkbox', id: id });
+          var li = h('li', null, [cb, h('label', { for: id }, t)]);
+          try { if (localStorage.getItem(key) === '1') { cb.checked = true; li.classList.add('done'); } } catch (e) { /* ignore */ }
+          cb.addEventListener('change', function () {
+            li.classList.toggle('done', cb.checked);
+            try { if (cb.checked) localStorage.setItem(key, '1'); else localStorage.removeItem(key); } catch (e) { /* ignore */ }
+          });
+          return li;
+        }))]));
+    }
+    var out = h('div', { class: 'fd' }, [left, right]);
+    // diff
+    var df = obj(DIFFS[F.path]);
+    if (df.text != null) {
+      var det = h('details', { class: 'disc diffbox full' }, h('summary', null, ['Diff', h('span', { class: 'muted' }, C.fmt(df.lines_total || 0) + ' lines' + (df.truncated ? ' · first ' + C.fmt(df.lines_shown) + ' shown' : '')), C.copyBtn(function () { return df.text; }, 'Copy diff')]));
+      det.addEventListener('toggle', function () {
+        if (det.open && !det._r) { det._r = true; det.appendChild(C.renderDiff(df.text, { truncated: df.truncated, totalLines: df.lines_total, shownLines: df.lines_shown })); }
+      });
+      out.appendChild(det);
+    } else if (f.diff_file) {
+      out.appendChild(h('div', { class: 'full muted', style: { 'font-size': '11.5px' } }, [
+        skipped.indexOf(F.path) >= 0 ? 'Diff not embedded (size budget reached): ' : 'Diff not embedded: ', h('code', null, str(f.diff_file))]));
+    }
+    return out;
+  }
+
+  function findingCard(x, F) {
+    var inf = x.confidence !== 'verified';
+    var ev = arr(x.evidence).map(obj).filter(function (e) { return e.path || e.snippet; });
+    var cons = strs(x.consequences), lim = strs(x.limitations), syms = strs(x.affected_symbols);
+    return h('div', { class: 'fc' + (x.critical ? ' crit' : '') + (inf ? ' inferred' : ' verified'), id: x.id != null ? 'fnd-' + str(x.id) : null }, [
+      h('div', { class: 'fc-h' }, [C.pts(x.points), x.critical ? C.critFlag('Critical rule: this finding flags the file as critical') : null,
+        h('span', { class: 'fc-title' }, str(x.title) || str(x.rule_id) || 'Finding'), h('span', { class: 'spacer' }), C.dimChip(x.dimension), C.conf(x.confidence)]),
+      h('div', { class: 'fc-meta' }, [x.rule_id ? h('code', null, str(x.rule_id)) : null, x.source ? h('span', { class: 'badge outline' }, str(x.source)) : null,
+        syms.length ? h('span', { class: 'mono' }, syms.join(', ')) : null]),
+      x.reason ? h('p', { class: 'fc-reason' }, str(x.reason)) : null,
+      ev.length ? h('div', { class: 'fc-ev' }, ev.map(function (e) {
+        var loc = (e.path && e.path !== F.path ? str(e.path) : C.basename(e.path || F.path)) +
+          (e.line_start != null ? ':' + e.line_start + (e.line_end != null && e.line_end !== e.line_start ? '–' + e.line_end : '') : '');
+        return h('div', { class: 'snip' }, [
+          h('div', { class: 'snip-h' }, [h('span', { class: 'mono', 'data-tip': str(e.path) }, loc), e.side ? h('span', { class: 'side-tag ' + (e.side === 'old' ? 'old' : 'new') }, e.side === 'old' ? 'before' : 'after') : null]),
+          e.snippet ? h('pre', null, str(e.snippet)) : null,
+          e.snippet ? C.copyBtn(str(e.snippet)) : null
+        ]);
+      })) : h('div', { class: 'fc-lim' }, 'No evidence attached'),
+      cons.length ? h('div', { class: 'fc-cons' }, cons.map(function (c) { return h('span', { class: 'chip' }, c); })) : null,
+      lim.map(function (l) { return h('div', { class: 'fc-lim' }, l); })
+    ]);
+  }
+
+  /* ---------- list containers ---------- */
+  var rankBox = h('div', { class: 'rows' });
+  ranked.forEach(function (F) { rankBox.appendChild(buildRow(F)); });
+  var flowGroups = [];
+  function flowGroup(name, desc, files, max, critical, cls) {
+    var strip = h('span', { class: 'fstrip' });
+    files.slice(0, 24).forEach(function (F, i) {
+      if (i) strip.appendChild(h('span', { class: 'ar' }, '›'));
+      strip.appendChild(h('i', { class: 'p' + F.maxPts + (F.critical ? ' crit' : ''), 'data-tip': C.basename(F.path) + ' · score ' + F.score }));
+    });
+    var box = h('div', { class: 'rows' });
+    var sec = h('section', { class: 'flow ' + (cls || '') }, [
+      h('div', { class: 'flow-h', onclick: function () { sec.classList.toggle('collapsed'); } }, [
+        h('span', { class: 'tw' }, '▾'),
+        max != null ? h('span', { class: 'score p' + groupMaxPts(files), 'data-tip': 'Highest file score in this flow' }, String(max)) : null,
+        critical ? C.critFlag('This flow contains a critical file') : null,
+        h('span', { class: 'fname' }, name), desc ? h('span', { class: 'fdesc' }, desc) : null,
+        h('span', { class: 'muted', style: { 'font-size': '11.5px' } }, CRA.plural(files.length, 'file')),
+        files.length > 1 && files.length <= 24 ? strip : null
+      ]), box]);
+    flowGroups.push({ sec: sec, box: box, files: files });
+    return sec;
+  }
+  function groupMaxPts(files) { return files.reduce(function (a, F) { return Math.max(a, F.maxPts); }, 0); }
+  var flowsBox = h('div');
+  flows.forEach(function (fl) { flowsBox.appendChild(flowGroup(fl.name, fl.description, fl.files, fl.max, fl.critical)); });
+  if (otherFiles.length) flowsBox.appendChild(flowGroup('Other changes', 'not part of a flow · ranked', otherFiles, null, false, 'other'));
+  if (mechFiles.length) flowsBox.appendChild(flowGroup('Mechanical changes', 'assessed as groups (see Mechanical groups) · collapsed', mechFiles, null, false, 'mech collapsed'));
+  var emptyEl = h('div', { class: 'empty', style: { padding: '16px' }, hidden: true }, 'No files match the filters.');
+  listSection.appendChild(emptyEl);
+
+  function setView(v) {
+    state.view = v;
+    try { localStorage.setItem('cra-view', v); } catch (e) { /* ignore */ }
+    btnFlows.setAttribute('aria-pressed', String(v === 'flows'));
+    btnRank.setAttribute('aria-pressed', String(v === 'ranking'));
+    if (v === 'flows') {
+      flowGroups.forEach(function (g) { g.files.forEach(function (F) { g.box.appendChild(rows[F.idx]); }); });
+      if (rankBox.parentNode) listSection.removeChild(rankBox);
+      listSection.insertBefore(flowsBox, emptyEl);
+    } else {
+      ranked.forEach(function (F) { rankBox.appendChild(rows[F.idx]); });
+      if (flowsBox.parentNode) listSection.removeChild(flowsBox);
+      listSection.insertBefore(rankBox, emptyEl);
+    }
+    applyFilters();
+  }
+
+  /* ---------- filtering ---------- */
+  function matches(F) {
+    var s = state;
+    if (s.q) {
+      var toks = s.q.toLowerCase().split(/\s+/).filter(Boolean);
+      for (var i = 0; i < toks.length; i++) if (F.search.indexOf(toks[i]) < 0) return false;
+    }
+    if (s.dim) { if (F.dims[s.dim] == null || F.dims[s.dim] < s.minPts) return false; }
+    else if (s.minPts > 0 && F.maxPts < s.minPts) return false;
+    if (s.tier && F.tier !== s.tier) return false;
+    if (s.critOnly && !F.critical) return false;
+    if (s.status && F.status !== s.status) return false;
+    if (s.untracked && !F.untracked) return false;
+    if (s.module && F.module !== s.module) return false;
+    if (s.humanOnly && !F.human) return false;
+    return true;
+  }
+  function applyFilters() {
+    var n = 0;
+    ranked.forEach(function (F) { var m = matches(F); rows[F.idx].hidden = !m; if (m) n++; });
+    flowGroups.forEach(function (g) { g.sec.hidden = !g.files.some(function (F) { return !rows[F.idx].hidden; }); });
+    emptyEl.hidden = n > 0 || !ranked.length;
+    if (!ranked.length) { emptyEl.hidden = false; emptyEl.textContent = 'No analysed files in this change.'; }
+    countEl.textContent = n === ranked.length ? ranked.length + ' files' : n + ' of ' + ranked.length + ' files';
+    // active filter chips
+    activeEl.innerHTML = '';
+    if (state.module) activeEl.appendChild(h('span', { class: 'chip' }, ['module: ' + state.module, h('span', { class: 'x', onclick: function () { setFilter({ module: '' }); } }, '✕')]));
+    var any = JSON.stringify(pick(state)) !== JSON.stringify(DEFAULTS);
+    resetBtn.hidden = !any;
+    if (any) C.$$('.flow.mech', flowsBox).forEach(function (sec) { sec.classList.remove('collapsed'); });
+    // reflect selections
+    Object.keys(profRows).forEach(function (k) { profRows[k].classList.toggle('sel', state.dim === k); });
+    Object.keys(dhEls).forEach(function (k) { dhEls[k].classList.toggle('sel', state.dim === k); });
+    if (cur && cur.hidden) setCurrent(null);
+  }
+  function pick(s) { var o = {}; Object.keys(DEFAULTS).forEach(function (k) { o[k] = s[k]; }); return o; }
+  function setFilter(patch, scroll) {
+    var moduleChanged = patch.module !== undefined && patch.module !== state.module;
+    Object.keys(patch).forEach(function (k) { state[k] = patch[k]; });
+    search.value = state.q; selDim.value = state.dim; selPts.value = String(state.minPts); selTier.value = state.tier;
+    selStatus.value = state.status; cbCrit.checked = state.critOnly; cbUntr.checked = state.untracked; cbHuman.checked = state.humanOnly;
+    applyFilters();
+    if (moduleChanged || patch.module === '') drawTreemap();
+    if (scroll) toolbar.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  /* ---------- navigation ---------- */
+  var cur = null;
+  function setCurrent(row) {
+    if (cur) cur.classList.remove('cur');
+    cur = row;
+    if (cur) cur.classList.add('cur');
+  }
+  function visibleRows() {
+    var box = state.view === 'flows' ? flowsBox : rankBox;
+    return C.$$('.frow', box).filter(function (r) {
+      if (r.hidden) return false;
+      var sec = r.closest('.flow');
+      return !sec || (!sec.hidden && !sec.classList.contains('collapsed'));
+    });
+  }
+  function move(d) {
+    var list = visibleRows();
+    if (!list.length) return;
+    var i = cur ? list.indexOf(cur) : -1;
+    i = i < 0 ? (d > 0 ? 0 : list.length - 1) : Math.max(0, Math.min(list.length - 1, i + d));
+    setCurrent(list[i]);
+    list[i]._head.focus({ preventScroll: true });
+    list[i].scrollIntoView({ block: 'nearest' });
+    var tb = toolbar.getBoundingClientRect(), rr = list[i].getBoundingClientRect();
+    if (rr.top < tb.bottom) window.scrollBy(0, rr.top - tb.bottom - 4);
+  }
+  function jumpTo(F, finding) {
+    if (F.tier === 'excluded') {
+      var ex = document.getElementById('excl-' + F.idx);
+      if (ex) { ex.scrollIntoView({ behavior: 'smooth', block: 'center' }); ex.classList.add('flash'); setTimeout(function () { ex.classList.remove('flash'); }, 1300); }
+      return;
+    }
+    var row = rows[F.idx];
+    if (!row) return;
+    if (!matches(F)) setFilter(DEFAULTS);
+    var sec = row.closest('.flow');
+    if (sec) sec.classList.remove('collapsed');
+    toggle(F, true);
+    setCurrent(row);
+    var target = finding && finding.id != null ? document.getElementById('fnd-' + str(finding.id)) : null;
+    var y = row.getBoundingClientRect().top + window.pageYOffset - toolbar.offsetHeight - 8;
+    window.scrollTo({ top: y, behavior: 'smooth' });
+    row.classList.add('flash'); setTimeout(function () { row.classList.remove('flash'); }, 1300);
+    if (target) { target.classList.add('flash'); setTimeout(function () { target.classList.remove('flash'); }, 1600); }
+  }
+
+  document.addEventListener('keydown', function (e) {
+    var t = e.target, tag = (t.tagName || '').toLowerCase();
+    var typing = tag === 'input' && !/checkbox|radio/.test(t.type) || tag === 'textarea' || tag === 'select' || t.isContentEditable;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (typing) {
+      if (e.key === 'Escape') t.blur();
+      if (e.key === 'Enter' && t === search) { t.blur(); setCurrent(null); move(1); e.preventDefault(); }
+      return;
+    }
+    if (e.key === '/') { e.preventDefault(); search.focus(); search.select(); return; }
+    if (e.key === 'j' || e.key === 'k') { e.preventDefault(); move(e.key === 'j' ? 1 : -1); return; }
+    var onHead = t.classList && t.classList.contains('fh');
+    if ((e.key === 'o' || (e.key === 'Enter' && (onHead || t === document.body))) && cur) { e.preventDefault(); toggle(cur._F); return; }
+    if (e.key === ' ' && onHead) { e.preventDefault(); toggle(t.parentNode._F); }
+  });
+
+  /* ================================================================ */
+  /* mechanical groups + excluded                                     */
+  /* ================================================================ */
+  var groups = arr(A.groups).map(obj).filter(function (g) { return Object.keys(g).length; });
+  if (groups.length) {
+    var gsum = groups.reduce(function (a, g) { return a + strs(g.files).length; }, 0);
+    app.appendChild(h('div', { class: 'section-title' }, [h('h2', null, 'Mechanical groups'), h('span', { class: 'count' }, CRA.plural(groups.length, 'group') + ' · ' + CRA.plural(gsum, 'file') + ' · assessed as groups, not file by file')]));
+    app.appendChild(h('div', { class: 'card' }, groups.map(function (g) {
+      var gf = strs(g.files);
+      var det = h('details', { class: 'disc grp' }, h('summary', null, [
+        g.kind ? h('span', { class: 'gk' }, str(g.kind)) : null, h('span', { class: 'gd' }, str(g.description) || str(g.id) || 'Group'),
+        h('span', { class: 'gn' }, CRA.plural(gf.length, 'file'))]));
+      det.addEventListener('toggle', function () {
+        if (!det.open || det._r) return;
+        det._r = true;
+        var sl = str(g.sample_line);
+        det.appendChild(h('div', { class: 'gbody' }, [
+          sl ? h('div', { class: 'sample ' + (sl.charAt(0) === '-' ? 'del' : sl.charAt(0) === '+' ? 'add' : '') }, sl) : null,
+          gf.length ? h('div', { class: 'gfiles' }, gf.map(function (p) {
+            var F = byPath[p];
+            return F ? h('a', { onclick: function () { jumpTo(F); } }, C.pathEl(p)) : h('div', null, C.pathEl(p));
+          })) : h('div', { class: 'empty' }, 'No files listed.')
+        ]));
+      });
+      return det;
+    })));
+  }
+  if (excluded.length) {
+    app.appendChild(h('div', { class: 'section-title' }, [h('h2', null, 'Excluded files'), h('span', { class: 'count' }, CRA.plural(excluded.length, 'file') + ' · not analysed')]));
+    app.appendChild(h('div', { class: 'card' }, h('table', { class: 'tbl excl stackable' }, [
+      h('thead', null, h('tr', null, [h('th', null, 'File'), h('th', null, 'Reason'), h('th', null, 'Lines')])),
+      h('tbody', null, excluded.map(function (F) {
+        return h('tr', { id: 'excl-' + F.idx }, [h('td', { class: 'p' }, [C.statusEl(F.status), ' ', F.path]),
+          h('td', { class: 'r' }, str(F.raw.excluded_reason) || strs(F.raw.tier_reasons).join(' · ') || 'excluded'),
+          h('td', { class: 'nowrap muted' }, '+' + C.fmt(F.raw.added_lines) + ' −' + C.fmt(F.raw.deleted_lines))]);
+      }))
+    ])));
+  }
+  app.appendChild(h('div', { class: 'footer' }, ['Generated by code-review-assistant', A.report_dir ? [' · ', h('code', null, str(A.report_dir))] : null,
+    A.schema_version != null ? ' · schema v' + str(A.schema_version) : null]));
+
+  /* ---------- go ---------- */
+  setView(state.view);
+  drawTreemap();
+  var lastW = tmHost.clientWidth;
+  window.addEventListener('resize', C.debounce(function () { if (tmHost.clientWidth !== lastW) { lastW = tmHost.clientWidth; drawTreemap(); } }, 150));
+  if (location.hash && /^#file-\d+$/.test(location.hash)) {
+    var F0 = allFiles.filter(function (F) { return 'file-' + F.idx === location.hash.slice(1); })[0];
+    if (F0) jumpTo(F0);
+  }
+})();
+</script>
+</body>
+</html>

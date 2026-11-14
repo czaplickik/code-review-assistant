@@ -1,0 +1,123 @@
+# Code Review Assistant — project configuration
+#
+# Copy to docs/code-review/rules.yaml (or run the review-init skill) and adjust.
+# Anything you leave out falls back to the plugin defaults. Mappings merge, lists replace.
+
+version: 1
+
+# Boundary. null = uncommitted changes vs HEAD (+ untracked files).
+# A branch name (e.g. develop) = merge-base(branch, HEAD) -> working tree.
+base_branch: null
+
+# Where reports are written (relative to the repo root). Keep it out of git.
+report_dir: docs/code-review/reports
+
+# Limit stack rulesets (ids from the plugin's rulesets/ directory). null = auto by file type.
+rulesets: null
+
+sources:
+  # Spec/plan documents are discovered among CHANGED files under these directories.
+  spec_dirs: [docs/superpowers/specs]
+  plan_dirs: [docs/superpowers/plans]
+  # Documented conventions used for convention-deviation analysis.
+  convention_files:
+    - CLAUDE.md
+    - AGENTS.md
+    - CONTRIBUTING.md
+    - 'docs/architecture/**/*.md'
+    - 'docs/conventions*.md'
+    - 'docs/**/conventions*.md'
+
+# Never analysed (still listed in the report with the reason).
+exclude:
+  - '**/*.md'
+  - '**/*.lock'
+  - '**/package-lock.json'
+  - '**/yarn.lock'
+  - '**/pnpm-lock.yaml'
+  - '**/packages.lock.json'
+  - '**/*.min.js'
+  - '**/*.map'
+  - '**/*.svg'
+  - '**/*.png'
+  - '**/*.jpg'
+  - '**/*.gif'
+  - '**/*.ico'
+  - '**/generated/**'
+  - '**/node_modules/**'
+  - '**/.idea/**'
+  - '**/.vscode/**'
+
+# Added to exclude (use this instead of redefining the whole list).
+extra_exclude: []
+
+# Glob paths of modules you consider critical: always analysed deeply, +points.
+critical_modules: []
+
+# Point overrides for rules, by rule id: {points: 2, critical: false} or {disabled: true}.
+rule_overrides: {}
+
+# Your own deterministic rules (same format as rulesets/*/signals.yaml), optional "ruleset: <id>".
+extra_rules: []
+
+mechanical:
+  # A changed line counts as a repeated pattern when it appears in at least this many files
+  # (or this share of all changed files, whichever is larger).
+  min_files: 5
+  min_share: 0.03
+
+tiers:
+  deep_min_points: 3        # deterministic finding with at least this many points -> deep
+  deep_fan_in: 20           # referenced from at least this many files -> deep
+  deep_added_block: 80      # contiguous added block of this size -> deep
+  deep_max_files: 40        # cap on deeply analysed files
+  deep_batch_size: 6
+  light_batch_size: 15
+
+signals:
+  fan_in:            {threshold: 20, points: 2, high_threshold: 60, high_points: 3}
+  large_block:       {threshold: 80, points: 1, high_threshold: 150, high_points: 2, new_file_threshold: 250}
+  missing_test:      {points: 2}
+  weakened_test:     {points: 4}
+  migration_edited:  {points: 4, critical: true}
+  critical_module:   {points: 2}
+
+# Review order: critical files first, then by severity (the file's most serious finding),
+# then by score (sum of points). A finding counts reach_bonus higher for ranking when the file is
+# referenced from at least reach_fan_in files or the finding is in a reach dimension
+# (contracts cross component boundaries). Severity never exceeds 5.
+ranking:
+  reach_fan_in: 10
+  reach_dimensions: [contracts]
+  reach_bonus: 1
+
+scoring:
+  # Multiplier per confidence. 1.0 for both = inferred findings count fully (still marked).
+  confidence_weight: {verified: 1.0, inferred: 1.0}
+
+# Review mode policy, evaluated top-down. The first matching rule decides.
+policy:
+  human_only:
+    # critical security/data-integrity findings in at least this many files
+    security_data_critical_files: 3
+    # or any security/data-integrity finding with at least these points
+    security_data_max_points: 5
+    # ...and critical files make up at least this share of the (non-excluded) change.
+    # Below it, critical issues are concentrated: a human reads those files, AI the rest.
+    min_critical_share: 0.25
+  ai_human:
+    # any critical finding, or a finding with >= key_dimension_points in a key dimension
+    key_dimensions: [core_logic, security, data_integrity, contracts]
+    key_dimension_points: 3
+    # files the human reads in this mode: critical ones + key-dimension findings with at least these points
+    human_file_points: 4
+  build_tests_static:
+    # renames, typos, simple CRUD, test fixes, simple script fixes
+    max_points: 1
+    max_files: 30
+  ai_review_only:
+    # simple/medium CRUD, standard changes in few files, moderate LOC, side logic
+    max_points: 2
+    max_files: 20
+    max_changed_lines: 1000     # production code only; tests do not count
+  # everything else -> ai+human-critical-paths

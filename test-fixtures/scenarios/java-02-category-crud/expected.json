@@ -1,0 +1,38 @@
+{
+  "mode": "ai-review-only",
+  "top": {
+    "n": 5,
+    "files": [
+      "src/main/java/com/example/shop/category/service/CategoryService.java",
+      "src/main/resources/db/migration/V3__create_categories.sql"
+    ]
+  },
+  "must_detect": [
+    {
+      "path": "src/main/java/com/example/shop/category/service/CategoryService.java",
+      "dimension": "core_logic",
+      "min_points": 1,
+      "note": "new CRUD feature: duplicate check, slug, soft delete"
+    },
+    {
+      "path": "src/main/resources/db/migration/V3__create_categories.sql",
+      "dimension": "data_integrity",
+      "min_points": 1,
+      "note": "new table + nullable FK on products (additive)"
+    },
+    {
+      "path": "src/main/java/com/example/shop/product/dto/ProductDto.java",
+      "dimension": "contracts",
+      "min_points": 1,
+      "note": "additive categoryId field"
+    }
+  ],
+  "traps": {
+    "n": 10,
+    "files": [
+      "src/main/java/com/example/shop/category/dto/CategoryDto.java",
+      "src/main/java/com/example/shop/category/dto/UpsertCategoryRequest.java",
+      "src/main/java/com/example/shop/category/service/CategoryMapper.java"
+    ]
+  }
+}

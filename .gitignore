@@ -1,0 +1,18 @@
+# build artefacts (publish zips as GitHub releases)
+dist/
+
+# python
+__pycache__/
+*.pyc
+
+# generated reports and test sandboxes
+docs/code-review/reports/
+test-fixtures/sandbox/
+
+# os / editors
+.DS_Store
+.idea/
+.vscode/
+
+# renderer samples (local only)
+tests/render-samples/

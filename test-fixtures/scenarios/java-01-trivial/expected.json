@@ -1,0 +1,28 @@
+{
+  "mode": "build+tests+static",
+  "top": {
+    "n": 5,
+    "files": []
+  },
+  "must_detect": [
+    {
+      "path": "src/test/java/com/example/shop/product/service/ProductServiceTest.java",
+      "dimension": "tests",
+      "min_points": 1,
+      "note": "expected slug corrected to match Slugs.slugify (fix, not weakening)"
+    },
+    {
+      "path": "scripts/seed-local-db.sh",
+      "dimension": "config_infra",
+      "min_points": 1,
+      "note": "dev seed script INSERT column fix"
+    }
+  ],
+  "traps": {
+    "n": 3,
+    "files": [
+      "src/main/java/com/example/shop/common/Money.java",
+      "src/main/java/com/example/shop/order/service/OrderService.java"
+    ]
+  }
+}

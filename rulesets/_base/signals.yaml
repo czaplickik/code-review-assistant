@@ -1,0 +1,86 @@
+# Stack-independent deterministic rules.
+#
+# Rule fields:
+#   id, dimension (see schemas/data-model.md), points 0-5, critical (bool), title, reason
+#   match:    added | removed | changed (default) | file (any change to a matching file)
+#   pattern:  regex searched in changed lines (imports and comments are skipped unless skip_noise: false)
+#   not_pattern: regex that suppresses a match
+#   path:     glob or list of globs the file must match
+#   exclude_path: glob(s) the file must not match
+#   ignore_after: regex; added lines from the first matching line of the new file onwards are ignored
+#   statuses: [added, modified, deleted, renamed]
+#   tests:    exclude (default) | only | any
+#   min_hits: minimum matching lines (default 1)
+#   points_new_file: points used instead when the file is new (additions in new code are lower risk)
+#   tags:     free labels (weakened_test is used by the review mode policy)
+rules:
+  - id: base.security.secret-literal
+    dimension: security
+    points: 5
+    critical: true
+    title: Possible hard-coded secret
+    reason: A credential-like literal was added.
+    match: added
+    pattern: '(?i)(password|passwd|secret|api[_-]?key|access[_-]?key|private[_-]?key|token)\s*[:=]\s*["''][^"''${}<>]{6,}["'']'
+    not_pattern: '(?i)(example|dummy|changeme|placeholder|test|fake|\*\*\*)'
+    tests: exclude
+
+  - id: base.security.private-key
+    dimension: security
+    points: 5
+    critical: true
+    title: Private key material added
+    reason: A PEM private key header was added.
+    match: added
+    pattern: '-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----'
+    tests: any
+    skip_noise: false
+
+  - id: base.security.tls-verification-disabled
+    dimension: security
+    points: 4
+    critical: false
+    title: TLS / certificate verification relaxed
+    reason: Code that disables certificate or hostname verification was added.
+    match: added
+    pattern: '(?i)(trustall|insecureskipverify|verify\s*=\s*false|ServerCertificateCustomValidationCallback\s*=|NoopHostnameVerifier|ALLOW_ALL_HOSTNAME)'
+
+  - id: base.data.destructive-sql
+    dimension: data_integrity
+    points: 4
+    critical: false
+    title: Destructive SQL statement
+    reason: DROP / TRUNCATE / DELETE / UPDATE without WHERE added in SQL or migration code.
+    match: added
+    pattern: '(?i)\b(drop\s+(table|column|index|constraint)|truncate\s+table|alter\s+table\s+\S+\s+drop|delete\s+from\s+\w+\s*;|update\s+\w+\s+set\b(?!.*\bwhere\b))'
+    tests: exclude
+
+  - id: base.data.bulk-data-update
+    dimension: data_integrity
+    points: 3
+    critical: false
+    title: Data rewritten by migration
+    reason: UPDATE / DELETE statements in a migration change existing data irreversibly.
+    match: added
+    path: ['**/migration/**', '**/migrations/**', '**/db/changelog/**', '**/*.sql']
+    pattern: '(?i)^\s*(update|delete)\s'
+    skip_noise: false
+
+  - id: base.config.infra-file
+    dimension: config_infra
+    points: 2
+    title: Infrastructure / deployment file changed
+    reason: Container, pipeline or infrastructure definition changed.
+    match: file
+    path: ['**/Dockerfile', '**/Dockerfile.*', '**/docker-compose*.yml', '**/docker-compose*.yaml',
+           '**/*.tf', '**/k8s/**', '**/helm/**', '**/.github/workflows/**', '**/azure-pipelines*.yml',
+           '**/Jenkinsfile', '**/.gitlab-ci.yml']
+    tests: any
+
+  - id: base.concurrency.thread-sleep
+    dimension: concurrency
+    points: 1
+    title: Sleep-based waiting added
+    reason: Thread.sleep / Task.Delay / time.sleep in production code often hides races.
+    match: added
+    pattern: '\b(Thread\.sleep|time\.sleep|Task\.Delay)\s*\('

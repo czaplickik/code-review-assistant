@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="code-review-assistant render_report.py">
+<title>@@TITLE@@</title>
+<style>
+@@BASE_CSS@@
+</style>
+<style>
+/* ---------- explanation ---------- */
+.target { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; }
+.target .lbl { font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+.target .fpath { font-size: 15px; }
+.target .sym { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 12px; }
+.target .sym code { font-size: 13px; font-weight: 650; background: var(--surface-2); padding: 1px 6px; border-radius: 3px; }
+.what { font-size: 14px; line-height: 1.55; }
+.why-legend { display: flex; gap: 8px; flex-wrap: wrap; }
+.wt { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px; border-radius: 10px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.wt.explicit { background: var(--ok); color: #fff; }
+.wt.explicit::before { content: "\201C"; font-size: 14px; line-height: 1; }
+.wt.inferred { background: transparent; color: var(--text-2); border: 1px dashed var(--text-3); font-style: italic; }
+.wt.inferred::before { content: "\2248"; font-style: normal; }
+.wt.technical-necessity { background: var(--accent-bg); color: var(--accent); border: 1px solid var(--accent); }
+.wt.technical-necessity::before { content: "\2699"; }
+.wt.unknown { background: var(--surface-3); color: var(--text-3); border: 1px solid var(--border-strong); }
+.wt.unknown::before { content: "?"; font-weight: 800; }
+.why { display: flex; flex-direction: column; gap: 8px; }
+.wi { border: 1px solid var(--border); border-left: 4px solid var(--text-3); border-radius: 5px; padding: 9px 12px; background: var(--surface); }
+.wi.explicit { border-left-color: var(--ok); }
+.wi.inferred { border-left-style: dashed; }
+.wi.technical-necessity { border-left-color: var(--accent); }
+.wi.unknown { border-left-color: var(--border-strong); background: var(--surface-2); }
+.wi-h { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.wi-t { margin-top: 5px; font-size: 13px; }
+.wi.inferred .wi-t { font-style: italic; }
+.wi.unknown .wi-t { color: var(--text-2); }
+.quote { margin: 7px 0 0; padding: 6px 10px; border-left: 3px solid var(--ok); background: var(--ok-bg); border-radius: 0 4px 4px 0; font-size: 12.5px; color: var(--text); }
+.quote::before { content: "\201C"; color: var(--ok); font-weight: 800; margin-right: 2px; }
+.quote::after { content: "\201D"; color: var(--ok); font-weight: 800; margin-left: 2px; }
+.wi-refs { margin-top: 5px; }
+.seqs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+@media (max-width: 1100px) { .seqs { grid-template-columns: minmax(0, 1fr); } }
+.seqs .card-h .tag { font-size: 10px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; padding: 1px 6px; border-radius: 3px; }
+.seqs .tag.before { background: var(--del-bg); color: var(--del-fg); }
+.seqs .tag.after { background: var(--add-bg); color: var(--add-fg); }
+.three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 980px) { .three { grid-template-columns: minmax(0, 1fr); } }
+.three li { font-size: 12.5px; }
+.check-q li .ico { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="page" id="app"><noscript><p style="padding:20px">This report renders with JavaScript. Enable it to view the explanation.</p></noscript></div>
+<script type="application/json" id="cra-data">@@DATA_JSON@@</script>
+<script>
+@@COMPONENTS_JS@@
+</script>
+<script>
+(function () {
+  'use strict';
+  var C = window.CRA, h = C.h, arr = C.arr, obj = C.obj, str = C.str, num = C.num, strs = C.strs;
+  var app = document.getElementById('app');
+  var raw = C.readJson('cra-data');
+  if (!raw || raw.__error || typeof raw !== 'object') {
+    C.fatal(app, raw && raw.__error ? 'The embedded explanation is not valid JSON (' + raw.__error + ').' : 'No explanation data is embedded.');
+    return;
+  }
+  var E = obj(raw);
+  C.initTooltip();
+  var T = obj(E.target);
+
+  app.appendChild(h('header', { class: 'topbar' }, [
+    h('span', { class: 'brand' }, 'Code Review Assistant'),
+    h('span', { class: 'title' }, 'Change explanation'),
+    h('span', { class: 'meta' }, [h('span', null, 'Stage 3')]),
+    h('span', { class: 'spacer' }),
+    C.themeToggle()
+  ]));
+  var main = h('main', { class: 'stack' });
+  app.appendChild(main);
+
+  /* ---------- target ---------- */
+  var lines = T.line_start != null ? 'L' + T.line_start + (T.line_end != null && T.line_end !== T.line_start ? '–' + T.line_end : '') : null;
+  main.appendChild(h('section', { class: 'card' }, h('div', { class: 'target' }, [
+    h('span', { class: 'lbl' }, 'Explaining'),
+    T.path ? C.pathEl(T.path) : h('span', { class: 'muted' }, 'target path not given'),
+    (T.symbol || lines) ? h('div', { class: 'sym' }, [T.symbol ? h('code', null, str(T.symbol)) : null, lines ? h('span', { class: 'badge mono' }, lines) : null]) : null
+  ])));
+
+  /* ---------- what changed + why ---------- */
+  var TYPES = {
+    explicit: ['explicit', 'Quoted from the spec or plan'],
+    inferred: ['inferred', 'Reasoned from the code and context, not stated anywhere'],
+    'technical-necessity': ['technical necessity', 'Required by the code or platform, not by a requirement'],
+    unknown: ['unknown', 'No source explains this change']
+  };
+  var typeOf = function (t) { t = str(t).toLowerCase().replace(/[_ ]/g, '-'); return TYPES[t] ? t : 'unknown'; };
+  var wt = function (t) { return h('span', { class: 'wt ' + t, 'data-tip': TYPES[t][1] }, TYPES[t][0]); };
+  var why = arr(E.why).map(function (w) { return typeof w === 'string' ? { text: w } : obj(w); }).filter(function (w) { return w.text || w.quote; });
+  var whyCounts = {};
+  why.forEach(function (w) { var t = typeOf(w.type); whyCounts[t] = (whyCounts[t] || 0) + 1; });
+
+  main.appendChild(h('div', { class: 'grid grid-5-7' }, [
+    C.card('What changed', null, E.what_changed ? h('p', { class: 'what' }, str(E.what_changed)) : h('p', { class: 'empty' }, 'Not described.')),
+    C.card('Why', null, why.length ? h('div', { class: 'why' }, why.map(function (w) {
+      var t = typeOf(w.type);
+      return h('div', { class: 'wi ' + t }, [
+        h('div', { class: 'wi-h' }, [wt(t)]),
+        w.text ? h('div', { class: 'wi-t' }, str(w.text)) : null,
+        w.quote ? h('blockquote', { class: 'quote' }, str(w.quote)) : null,
+        strs(w.refs).length ? h('div', { class: 'wi-refs' }, C.refsEl(w.refs)) : null
+      ]);
+    })) : h('div', { class: 'why' }, h('div', { class: 'wi unknown' }, [h('div', { class: 'wi-h' }, wt('unknown')), h('div', { class: 'wi-t' }, 'No reason recorded.')])),
+    { tools: h('span', { class: 'why-legend' }, Object.keys(TYPES).filter(function (t) { return whyCounts[t]; }).map(function (t) { return h('span', { class: 'muted', style: { 'font-size': '11px' } }, [wt(t), ' ×' + whyCounts[t]]); })) })
+  ]));
+
+  /* ---------- diff ---------- */
+  var diff = str(E.diff);
+  if (diff.trim()) {
+    var nLines = diff.split('\n').length;
+    main.appendChild(C.card('Diff', CRA.plural(nLines, 'line'), C.renderDiff(diff), { tools: C.copyBtn(diff, 'Copy diff') }));
+  }
+
+  /* ---------- dependency diagram ---------- */
+  var dep = obj(E.dependencies);
+  var depSvg = C.renderComponentDiagram(dep, {});
+  if (depSvg) main.appendChild(C.card('Dependencies', 'what this change touches', C.fitWrap(depSvg), { tools: C.diagramLegend(false) }));
+
+  /* ---------- sequences ---------- */
+  var sb = E.sequence_before && typeof E.sequence_before === 'object' ? E.sequence_before : null;
+  var sa = E.sequence_after && typeof E.sequence_after === 'object' ? E.sequence_after : null;
+  var sbSvg = sb ? C.renderSequence(sb) : null, saSvg = sa ? C.renderSequence(sa) : null;
+  if (sbSvg || saSvg) {
+    var seqCard = function (svg, seq, tag) {
+      return h('section', { class: 'card' }, [
+        h('div', { class: 'card-h' }, [h('span', { class: 'tag ' + tag }, tag), h('h2', null, str(obj(seq).title) || (tag === 'before' ? 'Before the change' : 'After the change'))]),
+        h('div', { class: 'card-b' }, svg ? C.fitWrap(svg) : h('div', { class: 'empty' }, tag === 'before' ? 'No before-sequence: the flow is new or was not reconstructed.' : 'No after-sequence.'))
+      ]);
+    };
+    var cards = [];
+    if (sbSvg) cards.push(seqCard(sbSvg, sb, 'before'));
+    cards.push(seqCard(saSvg, sa, 'after'));
+    main.appendChild(h('div', { class: 'seqs', style: cards.length > 1 ? null : { 'grid-template-columns': 'minmax(0, 1fr)' } }, cards));
+  }
+
+  /* ---------- context / impact / worth checking ---------- */
+  function list(title, key, ico, cls) {
+    var l = strs(E[key]);
+    return C.card(title, l.length ? String(l.length) : null, l.length ? h('ul', { class: 'ilist ' + (cls || '') }, l.map(function (x) { return h('li', null, [h('span', { class: 'ico' }, ico), h('span', null, x)]); }))
+      : h('div', { class: 'empty' }, 'Nothing recorded.'));
+  }
+  var wc = strs(E.worth_checking);
+  main.appendChild(h('div', { class: 'three' }, [
+    list('Context', 'context', '•'),
+    list('Impact', 'impact', '→'),
+    C.card('Worth checking', wc.length ? String(wc.length) : null, wc.length ? h('ul', { class: 'ilist check-q' }, wc.map(function (x) { return h('li', null, [h('span', { class: 'ico' }, '?'), h('span', null, x)]); })) : h('div', { class: 'empty' }, 'Nothing recorded.'),
+      { tools: wc.length ? C.copyBtn(function () { return wc.map(function (x) { return '- ' + x; }).join('\n'); }, 'Copy') : null })
+  ]));
+  app.appendChild(h('div', { class: 'footer' }, ['Generated by code-review-assistant · reasons are labelled by type; unknown is a valid answer',
+    E.schema_version != null ? ' · schema v' + str(E.schema_version) : null]));
+})();
+</script>
+</body>
+</html>
