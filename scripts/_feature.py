@@ -136,6 +136,8 @@ def find_or_create(base, info, repo_root):
     date = dt.date.today().isoformat()
     name = "-".join(x for x in (date, info["jira"], info["slug"]) if x)
     folder = base / name
+    if folder.exists():  # same ticket in another repository sharing this knowledge base
+        folder = base / f"{name}-{slugify(Path(repo_root).name, 8)}"
     n = 2
     while folder.exists():
         folder = base / f"{name}-{n}"
@@ -144,6 +146,54 @@ def find_or_create(base, info, repo_root):
     write_json(folder / "feature.json", {**info, "created": date, "repo_root": str(repo_root),
                                          "folder": folder.name, "outputs": {}})
     return folder
+
+
+DOC_PATH_RE = re.compile(r"`([^`\s]+\.[A-Za-z0-9]{1,8})`|(?<![\w/.-])((?:[\w.-]+/)+[\w.-]+\.[A-Za-z0-9]{1,8})")
+
+
+def select_doc(root, dirs, branch, changed, repo_files):
+    """Pick the spec/plan document that belongs to this change: ticket id or branch words in the
+    file name/head, and above all paths it mentions that exist in this repository.
+    Returns (path or None, reason)."""
+    branch = branch or ""
+    m = JIRA_RE.search(branch)
+    jira = m.group(1).lower() if m else None
+    words = {w for w in re.split(r"[^a-z0-9]+", JIRA_RE.sub("", BRANCH_PREFIX.sub("", branch.split("/")[-1])).lower())
+             if len(w) > 2}
+    repo_files = set(repo_files)
+    changed = set(changed)
+    best, best_key, reason, best_mentioned = None, None, None, 0
+    for d in dirs or []:
+        base = Path(root) / d
+        if not base.is_dir():
+            continue
+        for p in base.glob("*.md"):
+            rel = p.relative_to(root).as_posix()
+            try:
+                text = p.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            head = (p.name + "\n" + "\n".join(text.splitlines()[:30])).lower()
+            mentioned = {(m.group(1) or m.group(2)).strip("./") for m in DOC_PATH_RE.finditer(text)}
+            mentioned = {x for x in mentioned if "/" in x and not x.endswith(".md")}
+            exist = sum(1 for x in mentioned if x in repo_files or any(f.endswith("/" + x) for f in changed))
+            overlap = sum(1 for x in mentioned if any(f == x or f.endswith("/" + x) for f in changed))
+            ratio = exist / len(mentioned) if mentioned else 0.5
+            jira_hit = bool(jira and jira in head)
+            word_hits = sum(1 for w in words if w in p.name.lower())
+            try:
+                t = int(git("log", "-1", "--format=%ct", "--", rel, cwd=root).strip() or p.stat().st_mtime)
+            except ValueError:
+                t = int(p.stat().st_mtime)
+            key = (jira_hit, round(ratio, 2) if mentioned else 0.5, overlap, word_hits, t)
+            if best_key is None or key > best_key:
+                best, best_key, best_mentioned = rel, key, len(mentioned)
+                reason = (("ticket id in document; " if jira_hit else "") +
+                          (f"{exist}/{len(mentioned)} mentioned paths exist in this repository" if mentioned
+                           else "no file paths mentioned") + ("" if jira_hit or word_hits else "; newest document"))
+    if best_key and best_mentioned and best_key[1] == 0 and not best_key[0]:
+        return None, "no document in the spec/plan directories matches this repository"
+    return best, reason
 
 
 def feature_dir_of(path):
@@ -165,7 +215,7 @@ PUBLISHED_NAMES = {
 }
 
 
-def publish(kind, html_path, json_path=None, md_path=None, name=None):
+def publish(kind, html_path, json_path=None, md_path=None, name=None, extra=()):
     """Copy a rendered output to the feature folder root (previous version → history/), update
     the registry in feature.json and rebuild index.md. Returns the published path or None."""
     fdir = feature_dir_of(html_path)
@@ -175,7 +225,10 @@ def publish(kind, html_path, json_path=None, md_path=None, name=None):
     stamp = dt.datetime.now().strftime("%Y-%m-%d-%H%M")
     published = []
     for src, dest_name in ((html_path, name or PUBLISHED_NAMES.get(kind, Path(html_path).name)),
-                           (md_path, (Path(name or PUBLISHED_NAMES.get(kind, "")).stem + ".md") if md_path else None)):
+                           (md_path, (Path(name or PUBLISHED_NAMES.get(kind, "")).stem + ".md") if md_path else None),
+                           *extra):
+        if src and not Path(src).is_file():
+            continue
         if not src or not dest_name:
             continue
         dest = fdir / dest_name
@@ -231,9 +284,17 @@ def write_index(fdir, meta):
     if impact:
         v = impact.get("verdict") or {}
         lines += ["## Review mode", "", f"**{v.get('mode', '?')}** — {v.get('explanation', '')}", ""]
-        hf = v.get("human_files") or []
-        if hf:
-            lines += [f"Human reads {len(hf)} file(s):", ""] + [f"- `{p}`" for p in hf[:12]] + [""]
+        hr = impact.get("human_review") or [{"path": p} for p in v.get("human_files") or []]
+        if hr:
+            lines += [f"### Read yourself ({len(hr)} file(s))", ""]
+            for item in hr[:15]:
+                why = "; ".join(item.get("reasons") or [])
+                lines.append(f"- [ ] `{item['path']}`" + (f" — {why}" if why else ""))
+                for q in item.get("questions") or []:
+                    lines.append(f"    - [ ] {q}")
+            lines.append("")
+        if (fdir / "ai-review-focus.md").is_file():
+            lines += [f"AI agent checklist for the rest: [ai-review-focus.md](ai-review-focus.md)", ""]
         ranked = sorted((x for x in impact.get("files") or [] if x.get("rank")), key=lambda x: x["rank"])[:5]
         if ranked:
             lines += ["Top files:", ""]

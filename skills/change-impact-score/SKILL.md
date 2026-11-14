@@ -49,7 +49,8 @@ Every batch must produce `REPORT/semantic/batch-<N>.json` in the format describe
 
 - **1–2 batches:** do them yourself.
 - **More batches:** dispatch one subagent per batch with the Agent tool (general-purpose),
-  up to 6 in parallel, then the next wave. Give each subagent this brief, filled in:
+  up to 6 in parallel, then the next wave. Use the batch's `model` from `--list-batches` as the
+  Agent `model` parameter (`inherit` = leave it out); light batches default to a cheaper model. Give each subagent this brief, filled in:
 
   > You assess review criticality of changed files (triage, not bug hunting). Repository root:
   > `<repo root>`. Run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/show_diff.py <REPORT> --batch <N>` to get

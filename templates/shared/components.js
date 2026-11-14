@@ -802,23 +802,23 @@
     rects.forEach(function (r) {
       var gr = r.item;
       var g = s('g', { class: 'tm-mod' + (opts.selected === gr.id ? ' sel' : '') });
-      var tip = gr.label + '\n' + CRA.fmt(gr.value) + ' changed lines · ' + CRA.plural(gr.children.length, 'file') + '\nmax ' + gr.maxPts + ' pts' + (gr.critical ? ' · CRITICAL' : '') + '\nClick to filter the file list';
-      g.appendChild(s('rect', { class: 'mbg', x: r.x, y: r.y, width: Math.max(0, r.w), height: Math.max(0, r.h) }));
+      var tip = gr.label + (gr.deleted ? ' (deleted)' : '') + '\n' + CRA.fmt(gr.lines != null ? gr.lines : gr.value) + ' changed lines · ' + CRA.plural(gr.children.length, 'file') + '\nmax ' + gr.maxPts + ' pts' + (gr.critical ? ' · CRITICAL' : '') + '\nClick to filter the file list';
+      g.appendChild(s('rect', { class: 'mbg' + (gr.deleted ? ' mdel' : ''), x: r.x, y: r.y, width: Math.max(0, r.w), height: Math.max(0, r.h) }));
       var header = r.h > 36 && r.w > 54 ? 17 : 0;
       var inner = { x: r.x + 2, y: r.y + 1 + header, w: r.w - 4, h: r.h - 3 - header };
       if (inner.w > 10 && inner.h > 10 && gr.children.length) {
         CRA.squarify(gr.children, inner.x, inner.y, inner.w, inner.h).forEach(function (c) {
           var it = c.item, p = CRA.clampPts(it.maxPts);
-          var rc = s('rect', { class: 'tf fp' + p + (it.critical ? ' crit' : ''), x: c.x, y: c.y, width: Math.max(0, c.w), height: Math.max(0, c.h),
+          var rc = s('rect', { class: 'tf ' + (it.deleted ? 'fdel' : 'fp' + p) + (it.critical ? ' crit' : ''), x: c.x, y: c.y, width: Math.max(0, c.w), height: Math.max(0, c.h),
             'data-tip': it.tip || it.label });
           rc.addEventListener('click', function (e) { e.stopPropagation(); if (opts.onItem) opts.onItem(it.id); });
           g.appendChild(rc);
           if (c.w > 46 && c.h > 15) {
-            g.appendChild(s('text', { x: c.x + 4, y: c.y + 12, class: 'tf-l lp' + p }, CRA.fit(it.label, c.w - 8, 10)));
+            g.appendChild(s('text', { x: c.x + 4, y: c.y + 12, class: 'tf-l ' + (it.deleted ? 'ldel' : 'lp' + p) }, CRA.fit(it.label, c.w - 8, 10)));
           }
         });
       } else {
-        g.appendChild(s('rect', { class: 'tf fp' + CRA.clampPts(gr.maxPts) + (gr.critical ? ' crit' : ''), x: r.x + 1, y: r.y + 1, width: Math.max(0, r.w - 2), height: Math.max(0, r.h - 2), 'data-tip': tip }));
+        g.appendChild(s('rect', { class: 'tf ' + (gr.deleted ? 'fdel' : 'fp' + CRA.clampPts(gr.maxPts)) + (gr.critical ? ' crit' : ''), x: r.x + 1, y: r.y + 1, width: Math.max(0, r.w - 2), height: Math.max(0, r.h - 2), 'data-tip': tip }));
       }
       if (header) {
         var label = CRA.fit(gr.label, r.w - 10, 11, 650);

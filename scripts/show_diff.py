@@ -98,7 +98,8 @@ def main():
     if args.list_batches:
         for b in a.get("batches", []):
             done = (rdir / "semantic" / f"batch-{b['id']}.json").is_file()
-            print(f"batch {b['id']:>3} [{b['tier']}] {len(b['files'])} files {'DONE' if done else ''}")
+            print(f"batch {b['id']:>3} [{b['tier']}] model={b.get('model', 'inherit')} {len(b['files'])} files "
+                  f"{'DONE' if done else ''}")
         return
 
     if args.batch is not None:

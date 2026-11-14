@@ -13,7 +13,9 @@ Review only the change (diff), but judge it against the existing code around it.
    value objects, base classes, mappers, error types, validators that do the same thing.
 4. Before reporting dead code, **search for usages** of the symbol (Grep, including tests,
    config, reflection/DI by name).
-5. Confirm or dismiss every deterministic candidate in the batch.
+5. Before reporting a resource leak or missing validation/error handling, **read the callee**
+   the value is handed to — many library methods close or check for the caller.
+6. Confirm or dismiss every deterministic candidate in the batch.
 
 ## What to check
 

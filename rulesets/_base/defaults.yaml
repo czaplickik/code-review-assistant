@@ -33,6 +33,7 @@ sources:
 
 # Never analysed (still listed in the report with the reason).
 exclude:
+  - 'docs/code-review/**'
   - '**/*.md'
   - '**/*.lock'
   - '**/package-lock.json'
@@ -76,6 +77,12 @@ tiers:
   deep_max_files: 40        # cap on deeply analysed files
   deep_batch_size: 6
   light_batch_size: 15
+
+# Model for the subagents of each batch tier: inherit (= the session model), sonnet, opus, haiku.
+# Light batches mostly need the diff only; a cheaper model saves most of the cost.
+subagent_models:
+  deep: inherit
+  light: sonnet
 
 signals:
   fan_in:            {threshold: 20, points: 2, high_threshold: 60, high_points: 3}

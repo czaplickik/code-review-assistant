@@ -249,6 +249,27 @@ def main():
     a["limitations"] = []  # triage owns limitations; aggregate appends its own
     limitations = a["limitations"]
 
+    # ---- whole deleted modules: directories that no longer exist in the working tree
+    del_root = {}
+    for f in a["files"]:
+        if f["status"] != "deleted" or f["path"] in doc_sources:
+            continue
+        parts = Path(f["path"]).parts[:-1]
+        top = None
+        for i in range(len(parts), 0, -1):
+            d = Path(*parts[:i])
+            if (root / d).exists():
+                break
+            top = d.as_posix()
+        if top:
+            del_root[f["path"]] = top
+    root_count = Counter(del_root.values())
+    big = {r for r, c in root_count.items() if c >= 3}
+    # tests of a deleted module live in a parallel tree (src/test/... next to src/main/...)
+    del_root = {p: r for p, r in del_root.items()
+                if r in big or r.replace("/src/test/", "/src/main/").replace("src/test/", "src/main/") in big
+                or r.replace("/tests/", "/src/").replace("tests/", "src/") in big}
+
     hunks_by = {}
     trivial_by = {}
     used_rulesets = set()
@@ -261,7 +282,7 @@ def main():
         rs_list = [x for x in (rs, ctx.base_rs) if x]
         f["is_test"] = any(x.is_test(f["path"]) for x in rs_list)
         f["module"] = next((m for m in (x.module_of(f["path"]) for x in rs_list) if m), None) \
-            or (str(Path(f["path"]).parent) if "/" in f["path"] else "(root)")
+            or (Path(f["path"]).parent.as_posix() if "/" in f["path"] else "(root)")
         f.update({"tier": None, "tier_reasons": [], "excluded_reason": None, "mechanical_kind": None,
                   "symbols": [], "fan_in": 0, "fan_in_files": [], "largest_added_block": 0,
                   "linked_tests": [], "test_changed": None, "in_plan": None, "plan_refs": [],
@@ -273,6 +294,9 @@ def main():
         elif f.get("binary"):
             f["tier"], f["excluded_reason"] = "excluded", "binary file"
         if f["tier"] == "excluded":
+            continue
+        if f["path"] in del_root:
+            f["tier"], f["mechanical_kind"] = "mechanical", f"deleted with module {del_root[f['path']]}"
             continue
         if not rs and f["language"] not in ("markdown", "other"):
             no_ruleset.append(f["path"])
@@ -376,6 +400,53 @@ def main():
                             "description": f"Same change repeated in {len(paths)} files",
                             "files": sorted(paths),
                             "sample_line": "\n".join(f"{t}{l}" for t, l in sample)})
+    # deleted modules: one group each + references that still point into them
+    for mod in sorted(set(del_root.values())):
+        files = sorted(p for p, r in del_root.items() if r == mod)
+        syms = []
+        for p in files:
+            rs = rs_by_id.get(by_path[p]["ruleset"])
+            if not rs or not rs.symbol_res:
+                continue
+            try:
+                content = git("show", f"{ctx.base_commit}:{p}", cwd=root)
+            except SystemExit:
+                continue
+            for rx in rs.symbol_res:
+                syms += [m.group(1) for m in rx.finditer(content) if len(m.group(1)) >= 6]
+        pkgs = set()
+        for p in files:
+            m = re.search(r"(?:java|kotlin)/((?:[a-z0-9_]+/){3,}[a-z0-9_]+)/", p)
+            if m:
+                pkgs.add(m.group(1).replace("/", "."))
+        refs = []
+        terms = sorted(set(syms))[:80] + sorted(pkgs)[:5]
+        for t in terms:
+            out = git("grep", "-n", "-w", "-F", "--untracked", "-e", t, "--", ".",
+                      ":(exclude)docs/code-review/**", ":(exclude)*.md", cwd=root, ok=(0, 1))
+            for line in out.splitlines()[:5]:
+                path, _, rest = line.partition(":")
+                ln, _, snippet = rest.partition(":")
+                if path.endswith(".md") or path.startswith("docs/code-review/"):
+                    continue
+                refs.append({"path": path, "line": int(ln) if ln.isdigit() else None,
+                             "snippet": snippet.strip()[:200], "symbol": t})
+            if len(refs) >= 25:
+                break
+        gid += 1
+        a["groups"].append({"id": f"mech-{gid}", "kind": "deleted_module", "root": mod,
+                            "description": f"Module {mod} deleted ({len(files)} files)",
+                            "files": files, "sample_line": None, "dangling_refs": refs[:25]})
+        for ref in refs:
+            rf = by_path.get(ref["path"])
+            if rf and rf["tier"] not in ("excluded",):
+                if not any(x["rule_id"] == "base.architecture.removed-module-referenced" for x in rf["findings"]):
+                    rf["findings"].append(make_finding(
+                        "base.architecture.removed-module-referenced", "architecture", 3, False,
+                        f"Still references deleted module {mod}",
+                        f"`{ref['symbol']}` belonged to the deleted module; check the reference is intended.",
+                        [{"path": ref["path"], "line_start": ref["line"], "line_end": ref["line"], "side": "new",
+                          "snippet": ref["snippet"]}], tags=["dangling_reference"]))
     for kind in ("generated companion file", "renames / typo fixes only", "imports only", "comments only", "imports/comments only",
                  "whitespace/formatting only", "pure rename"):
         paths = sorted(f["path"] for f in a["files"] if f["mechanical_kind"] == kind)
@@ -468,6 +539,9 @@ def main():
         if big_block:
             reasons.append(f"{f['largest_added_block']}-line added block")
         deep = bool(strong) or f["fan_in"] >= tiers.get("deep_fan_in", 20) or big_block or "critical module" in reasons
+        if f["status"] == "deleted" and deep:
+            deep = False
+            reasons.append("deleted file: light review (what was removed and whether it is still needed)")
         f["tier"] = "deep" if deep else "light"
         f["_prio"] = sum(x["points"] for x in f["findings"]) + f["fan_in"] / 10 + f["largest_added_block"] / 50
 
@@ -487,7 +561,9 @@ def main():
         items = sorted((f for f in a["files"] if f["tier"] == tier), key=lambda f: (f["module"] or "", f["path"]))
         for i in range(0, len(items), size):
             n += 1
-            batches.append({"id": n, "tier": tier, "files": [f["path"] for f in items[i:i + size]]})
+            model = ((cfg.get("subagent_models") or {}).get(tier) or "inherit")
+            batches.append({"id": n, "tier": tier, "model": model,
+                            "files": [f["path"] for f in items[i:i + size]]})
     a["batches"] = batches
 
     st = a["change"]["stats"]

@@ -14,5 +14,5 @@ test-fixtures/sandbox/
 .idea/
 .vscode/
 
-# renderer samples (local only)
-tests/render-samples/
+# local test material: renderer samples and real-project reports (may contain company code)
+tests/

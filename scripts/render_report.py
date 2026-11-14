@@ -314,7 +314,8 @@ def publish_output(kind, out):
         return None
     folder = os.path.dirname(os.path.abspath(out))
     if kind == "impact":
-        return publish("impact", out, json_path=os.path.join(folder, "analysis.json"))
+        return publish("impact", out, json_path=os.path.join(folder, "analysis.json"),
+                       extra=[(os.path.join(folder, "ai-review-focus.md"), "ai-review-focus.md")])
     if kind == "plan":
         return publish("plan", out, json_path=os.path.splitext(out)[0] + ".json")
     if kind == "review":

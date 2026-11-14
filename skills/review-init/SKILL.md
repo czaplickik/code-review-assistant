@@ -21,4 +21,6 @@ allowed-tools: Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/*), Read, Edit, Glob, 
    - `base_branch` if they review whole feature branches instead of uncommitted changes;
    - `extra_exclude` for generated code directories you find.
    Apply only what the user confirms, with Edit.
-5. Summarise in 3–5 lines: detected rulesets, what was written, what was tuned.
+5. If `init_rules.py` printed a WARNING that rules.yaml is git-ignored, tell the user and offer
+   the `.gitignore` exception line; do not change `.gitignore` without their yes.
+6. Summarise in 3–5 lines: detected rulesets, what was written, what was tuned.

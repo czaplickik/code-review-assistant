@@ -11,6 +11,13 @@ from pathlib import Path
 
 import _yaml
 
+# Windows consoles default to a legacy code page; reports contain non-ASCII text (≥, —, …)
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
+
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 RULESETS_DIR = PLUGIN_ROOT / "rulesets"
 PROJECT_CONFIG = "docs/code-review/rules.yaml"

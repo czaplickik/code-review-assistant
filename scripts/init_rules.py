@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import subprocess
 
 from _common import (PROJECT_CONFIG, RULESETS_DIR, _yaml, git, glob_match, repo_root)
 
@@ -47,6 +48,10 @@ def main():
                             "  # (no docs/superpowers/ found — set your own directories)\n  # Spec/plan documents are discovered")
 
     target = root / PROJECT_CONFIG
+    ignored = subprocess.run(["git", "check-ignore", "-q", PROJECT_CONFIG], cwd=root).returncode == 0
+    if ignored:
+        print(f"WARNING: {PROJECT_CONFIG} is ignored by git in this repository (.gitignore) — the team "
+              f"will not get it. Add an exception (e.g. `!{PROJECT_CONFIG}`) or keep it local on purpose.")
     print("detected stacks: " + (", ".join(f"{d} ({n} markers, e.g. {', '.join(ex)})" for d, n, ex in detected) or "none"))
     if args.dry_run:
         print(text)

@@ -72,9 +72,13 @@ is almost never critical.
                 "reason": "1–2 sentences: why it matters", "evidence": [{"path": "…", "line_start": 10, "line_end": 14,
                 "side": "new", "snippet": "the relevant line(s)"}], "affected_symbols": ["Class.method"],
                 "consequences": ["…"], "confidence": "verified|inferred", "limitations": []}],
-  "adjust": [{"rule_id": "deterministic rule id", "points": 1, "reason": "why the deterministic score is wrong"}]
+  "adjust": [{"rule_id": "deterministic rule id", "points": 1, "critical": false,
+              "reason": "why the deterministic score is wrong"}]
 }
 ```
+
+`critical` exists on findings and on `adjust`: set it explicitly. An adjust to 0–1 points always
+clears it. A deterministic finding that is a false positive → `adjust` with `points: 0`.
 
 - One finding per distinct concern. Do not repeat deterministic findings; use `adjust` to
   correct them (including down to 0 when a match is a false positive).
@@ -82,3 +86,9 @@ is almost never critical.
   are `inferred`.
 - Low-impact files still get `role` and may have zero findings.
 - Never invent callers, tables or topics: list only what you saw in code you read.
+- Before claiming a resource leak, missing close/cleanup, missing validation or missing error
+  handling, **read the method the value is passed to** (and its library contract): many APIs
+  close or validate for the caller. If you did not read it, the finding is `inferred` and must
+  say what you did not check.
+- Deleted files: say what was removed and whether something must replace it; do not re-review
+  code that no longer exists.

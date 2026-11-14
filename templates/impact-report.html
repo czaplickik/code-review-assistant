@@ -51,6 +51,32 @@
 .stat .v .add { color: var(--st-new); } .stat .v .del { color: var(--st-removed); }
 .stat .v small { font-size: 11px; font-weight: 500; color: var(--text-3); }
 .stat.wide { grid-column: span 2; }
+.sevb { display: inline-flex; align-items: center; gap: 4px; }
+.sevb .sv { display: inline-flex; align-items: center; height: 22px; padding: 0 6px; border-radius: 5px; font: 800 11.5px/1 var(--font); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sevb .sc { font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sevb .reach { font-size: 9px; font-weight: 800; color: var(--accent); white-space: nowrap; }
+.stacked { margin-top: 10px; padding: 7px 12px; border-radius: 6px; background: var(--warn-bg); color: var(--warn); font-size: 12.5px; font-weight: 600; border: 1px solid var(--warn); }
+.hr-list { list-style: none; margin: 0; padding: 0; counter-reset: hr; }
+.hr-list > li { counter-increment: hr; display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 2px 10px; padding: 9px 12px; border-top: 1px solid var(--border); }
+.hr-list > li:first-child { border-top: 0; }
+.hr-list > li::before { content: counter(hr); grid-row: span 3; width: 22px; height: 22px; border-radius: 11px; background: var(--m-aih); color: #fff; font: 800 11px/22px var(--font); text-align: center; }
+.hr-list .hp { display: flex; gap: 8px; align-items: center; min-width: 0; flex-wrap: wrap; }
+.hr-list .hp a { cursor: pointer; min-width: 0; display: flex; }
+.hr-list .hp .fpath .base { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.hr-list .hreason { color: var(--text-2); font-size: 12.5px; }
+.hr-list .hq { list-style: none; padding: 0; margin: 3px 0 0; }
+.hr-list .hq li { display: flex; gap: 7px; align-items: flex-start; font-size: 12.5px; padding: 2px 0; }
+.hr-list .hq input { margin-top: 2px; flex: none; }
+.hr-list .hq li.done label { color: var(--text-3); text-decoration: line-through; }
+.hr-list .repl { font-size: 11.5px; color: var(--text-3); }
+details.focus-sec { margin-top: 22px; }
+details.focus-sec > summary { font-size: 14px; font-weight: 650; padding: 6px 0; }
+.dang { list-style: none; padding: 0; margin: 6px 0 0; }
+.dang li { font-size: 12px; padding: 3px 0; }
+.dang .dl2 { font-family: var(--mono); font-size: 11.5px; color: var(--crit-text); }
+.dang pre { margin: 2px 0 0; padding: 3px 8px; background: var(--crit-bg); border-radius: 4px; font-size: 11px; overflow-x: auto; }
+.dang-tag { display: inline-flex; align-items: center; height: 18px; padding: 0 6px; border-radius: 3px; background: var(--crit); color: #fff; font-size: 10.5px; font-weight: 800; white-space: nowrap; }
+.dang-ok { font-size: 11px; color: var(--ok); white-space: nowrap; }
 .stat.human { background: var(--m-aih-bg); } .stat.human .v { color: var(--m-aih); }
 .human-tag { display: inline-flex; align-items: center; height: 18px; padding: 0 5px; border-radius: 3px; font: 800 9.5px/1 var(--font); letter-spacing: .06em; text-transform: uppercase; color: var(--m-aih); border: 1.5px solid var(--m-aih); white-space: nowrap; }
 .fh .fh-crit { gap: 3px; flex-wrap: wrap; }
@@ -161,7 +187,7 @@
 .frow:first-child { border-top: 0; }
 .frow.is-crit { box-shadow: inset 4px 0 0 var(--crit); }
 .fh {
-  display: grid; grid-template-columns: 30px 70px 38px 42px minmax(160px, 1.25fr) minmax(0, 1fr) auto 12px;
+  display: grid; grid-template-columns: 30px 70px 86px 42px minmax(160px, 1.25fr) minmax(0, 1fr) auto 12px;
   gap: 8px; align-items: center; padding: 5px 10px 5px 12px; cursor: pointer; min-height: 34px;
 }
 .fh:hover { background: var(--surface-2); }
@@ -181,7 +207,7 @@
 .frow.open .caret { transform: rotate(90deg); }
 .frow.tier-mechanical .fpath .base { font-weight: 500; color: var(--text-2); }
 @media (max-width: 900px) {
-  .fh { grid-template-columns: 26px 70px 36px 42px minmax(0, 1fr) 12px; }
+  .fh { grid-template-columns: 26px 70px 86px 42px minmax(0, 1fr) 12px; }
   .fh .fh-titles, .fh .fh-dims { grid-column: 2 / -1; justify-content: flex-start; }
 }
 @media (max-width: 600px) {
@@ -298,6 +324,7 @@
       rank: f.rank != null && isFinite(Number(f.rank)) ? Number(f.rank) : null,
       severity: f.severity != null && isFinite(Number(f.severity)) ? Number(f.severity) : maxPts,
       tier: str(f.tier) || 'light', status: str(f.status), untracked: !!f.untracked,
+      sev: f.severity != null && isFinite(Number(f.severity)) ? C.clampPts(f.severity) : maxPts, reach: !!f.severity_reach_bonus,
       module: str(f.module) || '(no module)'
     };
     F.search = [F.path, str(f.old_path), strs(f.symbols).join(' '), str(f.role),
@@ -308,7 +335,17 @@
     allFiles.push(F);
   });
   var humanSet = {};
-  strs(obj(A.verdict).human_files).forEach(function (p) { humanSet[p] = true; });
+  var humanReview = arr(A.human_review).map(function (x) { return typeof x === 'string' ? { path: x } : obj(x); }).filter(function (x) { return x.path; });
+  var hrSeen = {};
+  humanReview = humanReview.filter(function (x) {
+    var p = str(x.path), prev = hrSeen[p];
+    if (!prev) { hrSeen[p] = x; return true; }
+    if (Object.keys(x).length > Object.keys(prev).length) Object.assign(prev, x);
+    return false;
+  });
+  var humanFromVerdict = !humanReview.length;
+  if (humanFromVerdict) humanReview = strs(obj(A.verdict).human_files).map(function (p) { return { path: p }; });
+  humanReview.forEach(function (x) { humanSet[str(x.path)] = true; });
   allFiles.forEach(function (F) { F.human = !!humanSet[F.path]; });
   var excluded = allFiles.filter(function (F) { return F.tier === 'excluded'; });
   var listFiles = allFiles.filter(function (F) { return F.tier !== 'excluded'; });
@@ -354,6 +391,7 @@
     h('span', { class: 'muted', style: { 'font-size': '11px' } }, [h('span', { class: 'kbd' }, '/'), ' search  ', h('span', { class: 'kbd' }, 'j'), h('span', { class: 'kbd' }, 'k'), ' move  ', h('span', { class: 'kbd' }, 'o'), ' open']),
     C.themeToggle()
   ]));
+  if (change.stacked_on) app.appendChild(h('div', { class: 'stacked', style: { margin: '0 0 12px' } }, '\u26A0 Branch contains commits of ' + str(change.stacked_on) + ' not merged into the base'));
 
   /* ================================================================ */
   /* verdict banner                                                   */
@@ -377,7 +415,7 @@
       'data-tip': str(x.title) + '\n' + hit.file.path + '\n' + C.dimLabel(x.dimension) + ' · ' + x.points + ' pts · ' + (inf ? 'inferred' : 'verified') + (x.critical ? ' · CRITICAL' : '') + '\nClick to open the file',
       onclick: function () { jumpTo(hit.file, x); } }, [
       C.pts(x.points), h('span', { class: 'ddot', style: { '--dc': C.dimColor(x.dimension) } }),
-      h('span', { class: 't' }, str(x.title) || str(x.rule_id) || id),
+      h('span', { class: 't' }, str(x.title) || str(x.rule_id) || id), inf ? h('span', { class: 'inf-tag' }, 'inferred') : null,
       h('span', { class: 'fn' }, C.basename(hit.file.path))
     ]);
   });
@@ -424,6 +462,36 @@
       statsEl
     ])
   ]));
+
+  /* read yourself (human_review, fallback verdict.human_files) */
+  if (humanReview.length) {
+    var hrList = h('ol', { class: 'hr-list' }, humanReview.map(function (x, i) {
+      var p = str(x.path), F = byPath[p], reasons = strs(x.reasons), qs = strs(x.questions), repl = strs(x.replaces);
+      var pathNode = F ? h('a', { onclick: function () { jumpTo(F); }, 'data-tip': p + '\nClick to open the file row' }, C.pathEl(p)) : C.pathEl(p);
+      return h('li', null, [
+        h('div', { class: 'hp' }, [pathNode, x.status ? C.statusEl(str(x.status)) : (F ? C.statusEl(F.status) : null), F && F.critical ? C.critFlag() : null,
+          F ? h('span', { class: 'sevb' }, h('span', { class: 'sv p' + F.sev }, 'sev ' + F.sev)) : null]),
+        reasons.length ? h('div', { class: 'hreason', 'data-tip': reasons.length > 1 ? reasons.join('\n') : null }, reasons[0] + (reasons.length > 1 ? '  (+' + (reasons.length - 1) + ')' : ''))
+          : (F && F.findings.length ? h('div', { class: 'hreason' }, str(F.findings[0].title)) : null),
+        qs.length || repl.length ? h('div', null, [
+          qs.length ? h('ul', { class: 'hq' }, qs.map(function (q, k) {
+            var key = reportKey + 'hr:' + p + ':' + k, id = 'hq-' + i + '-' + k;
+            var cb = h('input', { type: 'checkbox', id: id });
+            var li = h('li', null, [cb, h('label', { for: id }, q)]);
+            try { if (localStorage.getItem(key) === '1') { cb.checked = true; li.classList.add('done'); } } catch (e) { /* ignore */ }
+            cb.addEventListener('change', function () {
+              li.classList.toggle('done', cb.checked);
+              try { if (cb.checked) localStorage.setItem(key, '1'); else localStorage.removeItem(key); } catch (e) { /* ignore */ }
+            });
+            return li;
+          })) : null,
+          repl.length ? h('div', { class: 'repl', 'data-tip': repl.join('\n') }, 'replaces ' + CRA.plural(repl.length, 'deleted file') + ': ' + repl.slice(0, 3).map(C.basename).join(', ') + (repl.length > 3 ? ', …' : '')) : null
+        ]) : null
+      ]);
+    }));
+    app.appendChild(h('div', { style: { 'margin-top': '14px' } }, C.card('Read yourself', CRA.plural(humanReview.length, 'file') + (humanFromVerdict ? ' · from the verdict' : ' · with the questions to answer'),
+      hrList, { flush: true, id: 'read-yourself' })));
+  }
 
   /* context strip: rulesets, sources, limitations */
   function pathChips(list, cls) {
@@ -503,11 +571,12 @@
   var tmHost = h('div', { class: 'tm-host' });
   var modules = {};
   listFiles.forEach(function (F) {
-    var m = modules[F.module] || (modules[F.module] = { id: F.module, label: F.module, value: 0, maxPts: 0, critical: false, children: [] });
-    var v = Math.max(1, F.size);
-    m.value += v; m.maxPts = Math.max(m.maxPts, F.maxPts); m.critical = m.critical || F.critical;
-    m.children.push({ id: F.idx, label: C.basename(F.path), value: v, maxPts: F.maxPts, critical: F.critical,
-      tip: F.path + '\n+' + num(F.raw.added_lines) + ' −' + num(F.raw.deleted_lines) + ' lines · score ' + F.score + ' · max ' + F.maxPts + ' pts' + (F.critical ? ' · CRITICAL' : '') + '\nClick to open' });
+    var m = modules[F.module] || (modules[F.module] = { id: F.module, label: F.module, value: 0, lines: 0, maxPts: 0, critical: false, deleted: true, children: [] });
+    var del = F.status === 'deleted';
+    var v = Math.max(1, num(F.raw.added_lines) + 0.25 * num(F.raw.deleted_lines));
+    m.value += v; m.lines += F.size; m.maxPts = Math.max(m.maxPts, F.maxPts); m.critical = m.critical || F.critical; m.deleted = m.deleted && del;
+    m.children.push({ id: F.idx, label: C.basename(F.path), value: v, maxPts: F.maxPts, critical: F.critical, deleted: del,
+      tip: F.path + (del ? ' (deleted)' : '') + '\n+' + num(F.raw.added_lines) + ' −' + num(F.raw.deleted_lines) + ' lines · score ' + F.score + ' · max ' + F.maxPts + ' pts' + (F.critical ? ' · CRITICAL' : '') + '\nClick to open' });
   });
   var moduleList = Object.keys(modules).map(function (k) { return modules[k]; });
   function drawTreemap() {
@@ -523,8 +592,8 @@
 
   app.appendChild(h('div', { class: 'grid grid-5-7', style: { 'margin-top': '14px' } }, [
     C.card('Dimension profile', 'highest points per area', prof, { tools: C.ptsLegend() }),
-    C.card('Modules', 'area = changed lines · colour = highest points · click to filter',
-      [tmHost, h('div', { class: 'tm-foot' }, [h('span', null, [h('span', { class: 'crit-dot' }), ' red outline = critical file · excluded files not shown']), C.ptsLegend()])])
+    C.card('Modules', 'area = added + ¼ deleted lines · colour = highest points · click to filter',
+      [tmHost, h('div', { class: 'tm-foot' }, [h('span', null, [h('span', { class: 'crit-dot' }), ' red outline = critical file · grey dashed = deleted · excluded files not shown']), C.ptsLegend()])])
   ]));
 
   /* ================================================================ */
@@ -561,17 +630,7 @@
   var focus = strs(A.ai_review_focus);
   var hmCard = top30.length ? C.card('Heatmap', (top30.length < withFindings.length ? 'top 30 of ' + withFindings.length : withFindings.length) + ' files with findings × 12 dimensions',
     [h('div', { class: 'hm-wrap' }, hm), h('div', { class: 'hm-foot' }, [C.ptsLegend(), h('span', null, [h('span', { class: 'cb' }), ' critical finding in this dimension']), h('span', null, 'empty = no finding')])]) : null;
-  var focusCard = focus.length ? C.card('AI review focus', 'hand this list to an AI reviewer',
-    h('ol', { class: 'olist focus' }, focus.map(function (x) { return h('li', null, x); })),
-    { tools: C.copyBtn(function () { return focus.map(function (x) { return '- ' + x; }).join('\n'); }, 'Copy all') }) : null;
-  var hmRow = hmCard || focusCard ? h('div', { class: 'grid', style: { 'margin-top': '14px', 'grid-template-columns': hmCard && focusCard ? 'minmax(0, 7fr) minmax(0, 4fr)' : 'minmax(0, 1fr)' } }, [hmCard, focusCard]) : null;
-  if (hmRow) app.appendChild(hmRow);
-  if (hmCard && focusCard) {
-    var mq = window.matchMedia('(max-width: 980px)');
-    var applyMq = function () { hmRow.style.gridTemplateColumns = mq.matches ? 'minmax(0, 1fr)' : 'minmax(0, 7fr) minmax(0, 4fr)'; };
-    if (mq.addEventListener) mq.addEventListener('change', applyMq); else if (mq.addListener) mq.addListener(applyMq);
-    applyMq();
-  }
+  if (hmCard) app.appendChild(h('div', { style: { 'margin-top': '14px' } }, hmCard));
 
   /* ================================================================ */
   /* plan drift                                                       */
@@ -655,7 +714,7 @@
     return F.findings.slice(0, 2).map(function (x) {
       var inf = x.confidence !== 'verified';
       return h('span', { class: 'ft' + (x.critical ? ' crit' : '') + (inf ? ' is-inferred' : ''), 'data-tip': str(x.title) + '\n' + C.dimLabel(x.dimension) + ' · ' + x.points + ' pts · ' + (inf ? 'inferred' : 'verified') },
-        [C.pts(x.points, ''), h('span', { class: 'ft-text' }, str(x.title) || str(x.rule_id) || 'finding')]);
+        [C.pts(x.points, ''), h('span', { class: 'ft-text' }, str(x.title) || str(x.rule_id) || 'finding'), inf ? h('span', { class: 'inf-tag' }, 'inferred') : null]);
     });
   }
   function dimChips(F) {
@@ -664,11 +723,15 @@
     if (ks.length > 3) out.push(h('span', { class: 'dchip more', 'data-tip': ks.slice(3).map(function (k) { return C.dimLabel(k) + ': ' + F.dims[k]; }).join('\n') }, '+' + (ks.length - 3)));
     return out;
   }
+  function sevScore(F) {
+    return h('span', { class: 'sevb', 'data-tip': 'Severity ' + F.sev + ' = most serious finding' + (F.reach ? ' +1 for reach (many dependants)' : '') + '\nScore ' + F.score + ' = sum of all finding points' },
+      [h('span', { class: 'sv p' + F.sev }, 'sev ' + F.sev), F.reach ? h('span', { class: 'reach' }, 'reach +1') : null, h('span', { class: 'sc' }, '\u03A3' + F.score)]);
+  }
   function buildRow(F) {
     var head = h('div', { class: 'fh', role: 'button', tabindex: '0', 'aria-expanded': 'false' }, [
       h('span', { class: 'rank', 'data-tip': 'Rank ' + F.rank + ' of ' + ranked.length }, '#' + F.rank),
       h('span', { class: 'fh-crit' }, [F.critical ? C.critFlag() : null, F.human ? h('span', { class: 'human-tag', 'data-tip': 'Policy: a human should read this file' }, 'human') : null]),
-      h('span', { class: 'score p' + F.maxPts, 'data-tip': 'Score ' + F.score + ' (sum of finding points)\nColour = highest finding: ' + F.maxPts + ' pts' }, String(F.score)),
+      sevScore(F),
       h('span', { class: 'fh-st' }, [C.statusEl(F.status), F.untracked ? h('span', { class: 'untracked-tag', 'data-tip': 'Untracked: new file not yet in git' }, 'U') : null]),
       C.pathEl(F.path, 'fh-path'),
       h('span', { class: 'fh-titles' }, topTitles(F)),
@@ -972,24 +1035,37 @@
   var groups = arr(A.groups).map(obj).filter(function (g) { return Object.keys(g).length; });
   if (groups.length) {
     var gsum = groups.reduce(function (a, g) { return a + strs(g.files).length; }, 0);
-    app.appendChild(h('div', { class: 'section-title' }, [h('h2', null, 'Mechanical groups'), h('span', { class: 'count' }, CRA.plural(groups.length, 'group') + ' · ' + CRA.plural(gsum, 'file') + ' · assessed as groups, not file by file')]));
+    var hasDel = groups.some(function (g) { return g.kind === 'deleted_module'; });
+    app.appendChild(h('div', { class: 'section-title' }, [h('h2', null, hasDel ? 'Groups' : 'Mechanical groups'), h('span', { class: 'count' }, CRA.plural(groups.length, 'group') + ' · ' + CRA.plural(gsum, 'file') + ' · assessed as groups, not file by file')]));
     app.appendChild(h('div', { class: 'card' }, groups.map(function (g) {
       var gf = strs(g.files);
-      var det = h('details', { class: 'disc grp' }, h('summary', null, [
+      var isDel = g.kind === 'deleted_module';
+      var dang = arr(g.dangling_refs).map(function (d) { return typeof d === 'string' ? { path: d } : obj(d); }).filter(function (d) { return d.path || d.snippet; });
+      var det = h('details', { class: 'disc grp', open: isDel && dang.length ? true : null }, h('summary', null, isDel ? [
+        h('span', { class: 'gk' }, 'deleted module'), h('span', { class: 'gd' }, 'Deleted module ' + (str(g.root) || str(g.id) || '') + ' (' + CRA.plural(gf.length, 'file') + ')'),
+        str(g.description) ? h('span', { class: 'muted', style: { 'font-size': '12px' } }, str(g.description)) : null,
+        h('span', { class: 'gn' }, dang.length ? h('span', { class: 'dang-tag', 'data-tip': 'Code outside the module still references it' }, 'still referenced (' + dang.length + ')') : h('span', { class: 'dang-ok' }, '\u2713 no dangling references'))
+      ] : [
         g.kind ? h('span', { class: 'gk' }, str(g.kind)) : null, h('span', { class: 'gd' }, str(g.description) || str(g.id) || 'Group'),
         h('span', { class: 'gn' }, CRA.plural(gf.length, 'file'))]));
-      det.addEventListener('toggle', function () {
+      var render = function () {
         if (!det.open || det._r) return;
         det._r = true;
         var sl = str(g.sample_line);
         det.appendChild(h('div', { class: 'gbody' }, [
+          dang.length ? h('ul', { class: 'dang' }, dang.map(function (d) {
+            var l = str(d.path) + (d.line != null ? ':' + d.line : '');
+            return h('li', null, [h('span', { class: 'dl2', 'data-tip': l }, l), d.snippet ? h('pre', null, str(d.snippet)) : null]);
+          })) : null,
           sl ? h('div', { class: 'sample ' + (sl.charAt(0) === '-' ? 'del' : sl.charAt(0) === '+' ? 'add' : '') }, sl) : null,
           gf.length ? h('div', { class: 'gfiles' }, gf.map(function (p) {
             var F = byPath[p];
             return F ? h('a', { onclick: function () { jumpTo(F); } }, C.pathEl(p)) : h('div', null, C.pathEl(p));
           })) : h('div', { class: 'empty' }, 'No files listed.')
         ]));
-      });
+      };
+      det.addEventListener('toggle', render);
+      if (det.open) render();
       return det;
     })));
   }
@@ -1003,6 +1079,13 @@
           h('td', { class: 'nowrap muted' }, '+' + C.fmt(F.raw.added_lines) + ' −' + C.fmt(F.raw.deleted_lines))]);
       }))
     ])));
+  }
+  if (focus.length) {
+    app.appendChild(h('details', { class: 'disc focus-sec card', style: { padding: '6px 12px' } }, [
+      h('summary', null, ['AI review focus (' + focus.length + ')', h('span', { class: 'muted', style: { 'font-size': '12px', 'font-weight': '400' } }, '— also in ai-review-focus.md'),
+        h('span', { style: { 'margin-left': 'auto' } }, C.copyBtn(function () { return focus.map(function (x) { return '- ' + x; }).join('\n'); }, 'Copy all'))]),
+      h('ol', { class: 'olist focus', style: { padding: '4px 0 8px' } }, focus.map(function (x) { return h('li', null, x); }))
+    ]));
   }
   app.appendChild(h('div', { class: 'footer' }, ['Generated by code-review-assistant', A.report_dir ? [' · ', h('code', null, str(A.report_dir))] : null,
     A.schema_version != null ? ' · schema v' + str(A.schema_version) : null]));

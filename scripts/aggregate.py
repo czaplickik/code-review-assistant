@@ -54,7 +54,7 @@ def normalize_finding(x, path, problems, where):
                        "line_end": e.get("line_end", e.get("line_start")), "side": e.get("side", "new"),
                        "snippet": (e.get("snippet") or "")[:400]})
     return {"rule_id": x.get("rule_id") or f"semantic.{dim}", "source": "semantic", "dimension": dim,
-            "points": pts, "critical": bool(x.get("critical", False)), "title": str(x["title"])[:160],
+            "points": pts, "critical": bool(x.get("critical", False)) and pts >= 3, "title": str(x["title"])[:160],
             "reason": x.get("reason") or "", "evidence": ev[:4],
             "affected_symbols": list(x.get("affected_symbols") or []),
             "consequences": list(x.get("consequences") or []), "confidence": conf,
@@ -96,6 +96,8 @@ def load_semantic(rdir, a, problems):
                 tgt["points"] = pts
                 if "critical" in adj:
                     tgt["critical"] = bool(adj["critical"])
+                if pts <= 1:  # lowered to (almost) nothing: never critical
+                    tgt["critical"] = False
             if item.get("mechanical_confirmed") is False and f["tier"] == "mechanical":
                 f["tier"] = "light"
                 f["tier_reasons"].append("model found non-mechanical content")
@@ -171,6 +173,71 @@ def path_matches(changed, planned):
         return bool(re.search(r"(^|/)" + rx + "$", changed))
     return changed == planned or changed.endswith("/" + planned) or \
         ("/" not in planned and Path(changed).name == planned)
+
+
+def replace_deleted(paths, a, by_path):
+    """A deleted file is not something to read: point to the files that took over its logic
+    (same flow, interactions naming it, or files still referencing its module)."""
+    out = []
+    for p in paths:
+        f = by_path.get(p)
+        if not f or f["status"] != "deleted":
+            out.append(p)
+            continue
+        succ = []
+        fl = next((fl for fl in a.get("flows") or [] if p in fl["files"]), None)
+        if fl:
+            succ += [q for q in fl["files"] if by_path.get(q, {}).get("status") != "deleted"]
+        stem = Path(p).stem
+        for g in by_path.values():
+            inter = g.get("interactions") or {}
+            names = " ".join((inter.get("calls") or []) + (inter.get("called_by") or []) + (inter.get("contracts") or []))
+            if g["status"] != "deleted" and stem and stem in names:
+                succ.append(g["path"])
+        for g in a.get("groups") or []:
+            if g.get("kind") == "deleted_module" and p in g["files"]:
+                succ += [r["path"] for r in g.get("dangling_refs") or []]
+        succ = [q for q in dict.fromkeys(succ) if q in by_path and by_path[q]["tier"] in ("deep", "light")]
+        succ.sort(key=lambda q: by_path[q].get("rank") or 9999)
+        if succ:
+            for q in succ[:3]:
+                by_path[q].setdefault("_replaces", []).append(p)
+            out += succ[:3]
+        else:
+            out.append(p)
+    return list(dict.fromkeys(out))
+
+
+def human_review(paths, by_path, a):
+    items = []
+    for p in paths:
+        f = by_path.get(p)
+        if not f:
+            continue
+        top = sorted((x for x in f["findings"] if x["points"] > 0),
+                     key=lambda x: (-x["critical"], -x["points"]))[:3]
+        reasons = [f"{x['title']} ({x['points']} pt{', critical' if x['critical'] else ''})" for x in top]
+        replaces = f.pop("_replaces", [])
+        if replaces and not reasons:
+            reasons = [f"took over logic of deleted {', '.join(Path(r).name for r in replaces[:3])}"]
+        items.append({"path": p, "status": f["status"], "rank": f.get("rank"), "reasons": reasons,
+                      "questions": list(f.get("what_to_verify") or [])[:4], "replaces": replaces})
+    return items
+
+
+def write_focus_md(rdir, a, focus):
+    v = a.get("verdict") or {}
+    lines = ["# AI review focus", "",
+             f"Change: {a['change'].get('boundary')} vs {a['change'].get('base_ref')} on `{a['change'].get('branch')}`. "
+             f"Review mode: {v.get('mode')}.", "",
+             "Check each point below in the code and report what is wrong, with file and line. "
+             "Files read by the human reviewer are not listed.", ""]
+    if not focus:
+        lines.append("_No points: the human reviewer covers the change._")
+    for item in focus:
+        path, _, q = item.partition(": ")
+        lines.append(f"- [ ] `{path}` — {q}")
+    (rdir / "ai-review-focus.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def main():
@@ -279,14 +346,16 @@ def main():
     reach_dims = set(rk.get("reach_dimensions") or ["contracts"])
     bonus = rk.get("reach_bonus", 1)
     for f in a["files"]:
-        sev = 0
+        sev, raw = 0, 0
         for x in f["findings"]:
             p = x["points"]
+            raw = max(raw, p)
             if p >= 2 and not set(x.get("tags", [])) & {"drift", "blast_radius", "missing_test"} and \
                     (f.get("fan_in", 0) >= reach_fan_in or x["dimension"] in reach_dims):
                 p = min(5, p + bonus)
             sev = max(sev, p)
         f["severity"] = sev
+        f["severity_reach_bonus"] = sev > raw
     order = sorted((f for f in a["files"] if f["tier"] != "excluded"),
                    key=lambda f: (-f["critical"], -f["severity"], -f["score"],
                                   -(f["added_lines"] + f["deleted_lines"]), f["path"]))
@@ -360,8 +429,23 @@ def main():
     human = sorted({f["path"] for f, x in crits} |
                    {f["path"] for f, x in keys if x["points"] >= human_pts}) \
         if mode == "ai+human-critical-paths" else []
+    by_path = {f["path"]: f for f in a["files"]}
+    if mode in ("ai+human-critical-paths", "human-only") and not human:
+        dec = {x["id"] for f, x in allf if x["id"] in deciding}
+        human = sorted({f["path"] for f, x in allf if x["id"] in dec})
+    human = replace_deleted(human, a, by_path)
+    if mode in ("ai+human-critical-paths", "human-only") and \
+            not any(by_path[p]["status"] != "deleted" for p in human if p in by_path):
+        # nothing readable left (e.g. the deciding file was deleted): add the top ranked live files
+        human += [f["path"] for f in order if f["status"] != "deleted" and f["tier"] in ("deep", "light")
+                  and f["path"] not in human][:5]
+    if mode == "human-only":
+        extra = [f["path"] for f in order if f["tier"] in ("deep", "light") and f["path"] not in human]
+        human = human + extra[:max(0, 15 - len(human))]
+    human.sort(key=lambda p: by_path[p].get("rank") or 9999 if p in by_path else 9999)
     a["verdict"] = {"mode": mode, "policy_rule": rule, "explanation": why, "deciding_findings": deciding,
                     "human_files": human}
+    a["human_review"] = human_review(human, by_path, a)
 
     # ---- AI review focus
     focus = []
@@ -372,6 +456,7 @@ def main():
         for item in f.get("what_to_verify") or []:
             focus.append(f"{f['path']}: {item}")
     a["ai_review_focus"] = focus[:30]
+    write_focus_md(rdir, a, focus)
 
     write_json(rdir / "analysis.json", a)
     print(f"verdict: {mode}  ({rule}: {why})")

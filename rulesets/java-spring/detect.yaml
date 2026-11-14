@@ -61,8 +61,11 @@ skip_patterns:
   - '\bAssumptions\.abort'
 module_patterns:
   # src/main/java/com/example/shop/order/... -> order ; multi-module: <module>/src/... -> <module>/order
-  - '^(?:([^/]+)/)?src/(?:main|test)/(?:java|kotlin)/(?:[a-z0-9_]+/){3}([a-z0-9_]+)/'
-  - '^(?:([^/]+)/)?src/(?:main|test)/(resources)/'
+  # multi-module: last directory before src/ + 4th package segment (com/acme/app/<module>)
+  - '^(?:.*/)?([^/]+)/src/(?:main|test)/(?:java|kotlin)/(?:[a-z0-9_]+/){3}([a-z0-9_]+)/'
+  - '^src/(?:main|test)/(?:java|kotlin)/(?:[a-z0-9_]+/){3}([a-z0-9_]+)/'
+  - '^(?:.*/)?([^/]+)/src/(?:main|test)/(resources)/'
+  - '^src/(?:main|test)/(resources)/'
 test_name_map:
   - from: '^(.+)\.java$'
     to: ['\1Test.java', '\1Tests.java', '\1IT.java', '\1IntegrationTest.java']

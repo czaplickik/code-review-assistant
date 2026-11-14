@@ -140,6 +140,7 @@ Families: `logic` (Logic), `security_data` (Security & Data), `contracts_integra
       "findings": [],
       "score": 17,
       "severity": 5,
+      "severity_reach_bonus": false,
       "rank": 1,
       "critical": true,
       "dimensions": {"core_logic": 4, "data_integrity": 5, "integration": 3}
@@ -147,7 +148,9 @@ Families: `logic` (Logic), `security_data` (Security & Data), `contracts_integra
   ],
   "groups": [
     {"id": "mech-1", "kind": "mechanical", "description": "Logger field replaced by @Slf4j",
-     "files": ["..."], "sample_line": "-    private static final Logger log = ..."}
+     "files": ["..."], "sample_line": "-    private static final Logger log = ..."},
+    {"id": "mech-2", "kind": "deleted_module", "root": "legacy-gateway", "description": "Module legacy-gateway deleted (120 files)",
+     "files": ["..."], "dangling_refs": [{"path": "...", "line": 12, "snippet": "...", "symbol": "GatewayClient"}]}
   ],
   "flows": [
     {"id": "refund-request", "name": "Refund request", "description": "REST → service → gateway → DB → event",
@@ -166,6 +169,8 @@ Families: `logic` (Logic), `security_data` (Security & Data), `contracts_integra
     "human_files": ["paths the human should read (ai+human-critical-paths only)"]
   },
   "ai_review_focus": ["Verify refund amount never exceeds captured amount (RefundService.calculate)."],
+  "human_review": [{"path": "...", "status": "modified", "rank": 1, "reasons": ["finding title (4 pt, critical)"],
+                    "questions": ["what_to_verify items"], "replaces": ["deleted paths whose logic moved here"]}],
   "limitations": ["No ruleset matched 2 files (scripts/*.ps1): base rules only."],
   "config": {"policy": {}, "tiers": {}}
 }

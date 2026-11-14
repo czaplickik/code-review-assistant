@@ -10,6 +10,7 @@ Prints the report directory.
 from __future__ import annotations
 
 import argparse
+import sys
 import datetime as dt
 import difflib
 import hashlib
@@ -17,7 +18,7 @@ from pathlib import Path
 
 from _common import (EMPTY_TREE, die, git, git_ok, glob_match, load_config, parse_diff,
                      report_base, repo_root, write_json)
-from _feature import feature_info, find_or_create
+from _feature import feature_info, find_or_create, select_doc
 
 LANG_BY_EXT = {
     ".java": "java", ".kt": "kotlin", ".kts": "kotlin", ".groovy": "groovy",
@@ -78,6 +79,29 @@ def pair_moves(entries, root, base_commit, min_ratio=0.7):
         entries.remove(d)
 
 
+def stacked_parent(root, base_ref, branch, limit=300):
+    """Nearest other branch whose tip is in HEAD's history but not in base_ref (branch cut from a
+    feature branch). Returns {"ref", "commits"} or None."""
+    refs = [r for r in git("for-each-ref", "--format=%(refname:short)", "refs/remotes", "refs/heads",
+                           cwd=root).split() if not r.endswith("/HEAD")][:limit]
+    own = {branch, f"origin/{branch}"} if branch else set()
+    best = None
+    for r in refs:
+        if r in own or r == base_ref or r.endswith("/" + str(base_ref)):
+            continue
+        if not git_ok("merge-base", "--is-ancestor", r, "HEAD", cwd=root):
+            continue
+        if git_ok("merge-base", "--is-ancestor", r, base_ref, cwd=root):
+            continue
+        ahead = int(git("rev-list", "--count", f"{base_ref}..{r}", cwd=root).strip() or 0)
+        between = int(git("rev-list", "--count", f"{r}..HEAD", cwd=root).strip() or 0)
+        if ahead == 0:
+            continue
+        if best is None or between < best["between"] or (between == best["between"] and r.startswith("origin/")):
+            best = {"ref": r, "commits": ahead, "between": between}
+    return best
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--base", help="base branch (merge-base with HEAD)")
@@ -107,6 +131,11 @@ def main():
         base_commit = git("rev-parse", "HEAD", cwd=root).strip() if has_head else EMPTY_TREE
         boundary = "uncommitted"
     branch = git("rev-parse", "--abbrev-ref", "HEAD", cwd=root).strip() if has_head else None
+    stacked_on = stacked_parent(root, base_ref, branch) if boundary == "base" else None
+    if stacked_on:
+        print(f"WARNING: stacked branch — HEAD contains {stacked_on['commits']} commit(s) of {stacked_on['ref']} "
+              f"that are not in {base_ref}; they are part of this boundary. To review only this branch run "
+              f"again with --base {stacked_on['ref']}", file=sys.stderr)
 
     def ignored(path):
         return bool(report_root) and path.startswith(report_root.rstrip("/") + "/")
@@ -168,7 +197,7 @@ def main():
 
     def discover(explicit, dirs):
         if explicit:
-            return [str(Path(p)) for p in explicit]
+            return [Path(p).as_posix() for p in explicit]
         return sorted(p for p in changed if p.endswith(".md")
                       and any(p.startswith(d.strip("/") + "/") for d in dirs or []))
 
@@ -178,19 +207,15 @@ def main():
     if not spec and not plan and not args.spec and not args.plan:
         # specs and plans are usually committed before the implementation starts:
         # fall back to the newest document in each configured directory
-        def newest(dirs):
-            best, best_t = None, -1
-            for d in dirs or []:
-                for p in sorted((root / d).glob("*.md")) if (root / d).is_dir() else []:
-                    rel = str(p.relative_to(root))
-                    t = git("log", "-1", "--format=%ct", "--", rel, cwd=root).strip()
-                    t = int(t) if t.isdigit() else int(p.stat().st_mtime)
-                    if t > best_t:
-                        best, best_t = rel, t
-            return [best] if best else []
-        spec, plan = newest(src.get("spec_dirs")), newest(src.get("plan_dirs"))
+        repo_files = split_z(git("ls-files", "-z", cwd=root))
+        reasons = []
+        for key in ("spec", "plan"):
+            doc, why = select_doc(root, src.get(f"{key}_dirs"), branch, changed, repo_files)
+            if doc:
+                (spec if key == "spec" else plan).append(doc)
+                reasons.append(f"{key}: {why}")
         if spec or plan:
-            discovered_from = "newest document in the spec/plan directories (not part of the change)"
+            discovered_from = "committed document matched to this change (" + "; ".join(reasons) + ")"
     all_files = split_z(git("ls-files", "-z", cwd=root)) + [f["path"] for f in files if f["untracked"]]
     conventions = sorted({p for p in all_files if glob_match(p, src.get("convention_files"))}
                          - set(spec) - set(plan))
@@ -217,6 +242,7 @@ def main():
         "change": {
             "boundary": boundary, "base_ref": base_ref, "base_commit": base_commit[:12],
             "branch": branch, "change_hash": change_hash,
+            "stacked_on": stacked_on["ref"] if stacked_on else None,
             "stats": {"files": len(files), "added_lines": tot_add, "deleted_lines": tot_del,
                       "untracked": sum(1 for f in files if f["untracked"])},
             "rulesets": [],

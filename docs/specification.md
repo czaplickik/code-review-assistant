@@ -313,6 +313,22 @@ A weakened test always lifts the mode to at least `ai-review-only`.
 Reaching mode 3 or 4 requires positive evidence of simplicity — absence of findings because of
 missing context is not enough.
 
+## 7.2a. Human list, deleted code, boundary
+
+- In `ai+human-critical-paths` and `human-only` the list of files the human reads is never
+  empty: critical files and key-dimension findings ≥ 4 points; else the files of the deciding
+  findings; a deleted file is replaced by the files that took over its logic (same flow,
+  interactions, files still referencing its module); else the top ranked live files. Each entry
+  carries reasons and the questions to answer (`human_review`).
+- A whole deleted module (directory gone from the working tree, ≥ 3 files, plus its parallel
+  test tree) is one `deleted_module` group: no per-file rules, one deterministic check whether
+  remaining code still references its types/packages. Other deleted files are reviewed lightly.
+- With a base branch, a branch cut from another unmerged feature branch is detected and the
+  nearer base is suggested (`change.stacked_on`).
+- Committed spec/plan documents are matched to the change (ticket id, branch words, mentioned
+  paths that exist in the repository), not taken by date.
+- Light batches can run on a cheaper model (`subagent_models`).
+
 ## 7.3. Output (top of report)
 
 - the mode, with the 3–5 findings that decided it (the policy rule that fired is named),
