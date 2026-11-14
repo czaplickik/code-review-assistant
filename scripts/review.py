@@ -10,6 +10,8 @@ Usage:
       Prints the model input for one batch: checklist paths, candidates, file metadata, diffs.
   review.py merge <review_dir>
       Validates the model output, writes review.json and review.md. Exit 1 lists problems.
+  review.py verify-plan <review_dir>     batches of blocker/major findings for the finding-verifier agent
+  review.py verify-show <review_dir> --batch N
   review.py combine <review_dir> <keep-id> <drop-id> [...]
       Folds duplicate findings (ids from the last merge) into one; then run merge again.
 
@@ -419,21 +421,55 @@ def cmd_merge(args):
             print(f"  - {p}", file=sys.stderr)
         sys.exit(1)
 
-    min_cert = int((load_config(repo_root()).get("scoring") or {}).get("min_certainty", 70))
-    to_confirm = []
-    kept = []
+    rcfg = (load_config(repo_root()).get("review") or {})
+    min_by_sev = rcfg.get("min_certainty") or {}
+    if not isinstance(min_by_sev, dict):
+        min_by_sev = {s_: int(min_by_sev) for s_ in SEVERITIES}
+    verify_sevs = set(rcfg.get("verify_severities") or ["blocker", "major"])
+    verdicts = load_verdicts(rv)
+    to_confirm, rejected, kept = [], [], []
     for x in findings:
+        x["key"] = finding_key(kind, x)
         try:
             cert = int(x.get("certainty", 90 if x.get("confidence") == "verified" else 70))
         except (TypeError, ValueError):
             cert = 70
         x["certainty"] = max(0, min(100, cert))
-        (to_confirm if x["certainty"] < min_cert else kept).append(x)
+        v = verdicts.get(x["key"])
+        if v:
+            x["verification"] = {"verdict": v.get("verdict"), "certainty": v.get("certainty"),
+                                 "reason": v.get("reason")}
+            if v.get("verdict") == "rejected":
+                rejected.append(x)
+                continue
+            if v.get("verdict") == "downgraded" and v.get("severity") in SEVERITIES:
+                x["original_severity"] = x["severity"]
+                x["severity"] = v["severity"]
+            try:
+                x["certainty"] = max(0, min(100, int(v.get("certainty", x["certainty"]))))
+            except (TypeError, ValueError):
+                pass
+        threshold = int(min_by_sev.get(x["severity"], 70))
+        (to_confirm if x["certainty"] < threshold else kept).append(x)
     findings = kept
     order = {s: i for i, s in enumerate(SEVERITIES)}
+    findings.sort(key=lambda x: (order[x["severity"]], -x["certainty"], x["path"]))
+    limit = int((rcfg.get("max_findings") or {}).get(kind, 0) or 0)
+    more = []
+    if limit and len(findings) > limit:
+        # blockers are never cut; the weakest of the rest move to "More observations"
+        must = [x for x in findings if x["severity"] == "blocker"]
+        rest = [x for x in findings if x["severity"] != "blocker"]
+        room = max(0, limit - len(must))
+        findings, more = must + rest[:room], rest[room:]
+    unverified = [x for x in findings if x["severity"] in verify_sevs and "verification" not in x]
     to_confirm.sort(key=lambda x: (order.get(x["severity"], 9), x["path"]))
     for i, x in enumerate(to_confirm, 1):
         x["id"] = f"U-{i:03d}"
+    for i, x in enumerate(more, 1):
+        x["id"] = f"M-{i:03d}"
+    for i, x in enumerate(rejected, 1):
+        x["id"] = f"X-{i:03d}"
     findings.sort(key=lambda x: (order[x["severity"]], x["path"], x.get("line_start") or 0))
     for i, x in enumerate(findings, 1):
         x["id"] = f"R-{i:03d}"
@@ -442,13 +478,18 @@ def cmd_merge(args):
     for x in findings:
         by_file[x["path"]].append(x["id"])
     roles = {f["path"]: f.get("role") for f in a["files"]}
-    summary = {s: sum(1 for x in findings if x["severity"] == s) for s in SEVERITIES}
+    summary = {s_: sum(1 for x in findings if x["severity"] == s_) for s_ in SEVERITIES}
     limitations = list(a.get("limitations") or [])
     if problems:
         limitations.append(f"Review incomplete: {len(problems)} problem(s) in model output.")
     if to_confirm:
-        limitations.append(f"{len(to_confirm)} finding(s) below certainty {min_cert} are listed under "
+        limitations.append(f"{len(to_confirm)} finding(s) below the certainty threshold are listed under "
                            f"'To confirm' and not counted.")
+    if unverified:
+        limitations.append(f"{len(unverified)} {'/'.join(sorted(verify_sevs))} finding(s) were not independently "
+                           f"verified (run `review.py verify-plan` and the finding-verifier agent).")
+    if rejected:
+        limitations.append(f"{len(rejected)} finding(s) rejected by independent verification (kept in review.json).")
     if scope["mechanical_groups"]:
         limitations.append(f"{len(scope['mechanical_groups'])} mechanical group(s) reviewed through 2 sample files each.")
     if scope["sources"].get("discovered_from"):
@@ -459,7 +500,12 @@ def cmd_merge(args):
                         "mechanical_groups_sampled": len(scope["mechanical_groups"]), "excluded": scope["excluded"]},
               "summary": summary, "findings": findings,
               "files": [{"path": p, "role": roles.get(p), "findings": ids} for p, ids in sorted(by_file.items())],
-              "spec": spec, "to_confirm": to_confirm, "limitations": limitations}
+              "spec": spec, "to_confirm": to_confirm, "more": more, "rejected": rejected,
+              "verification": {"verified": sum(1 for x in findings if "verification" in x),
+                               "unverified": len(unverified), "rejected": len(rejected),
+                               "downgraded": sum(1 for x in findings + more + to_confirm
+                                                 if x.get("original_severity"))},
+              "limitations": limitations}
     write_json(rv / "review.json", review)
     (rv / "review.md").write_text(to_markdown(review), encoding="utf-8")
     print(f"{kind}-review: blocker {summary['blocker']}, major {summary['major']}, minor {summary['minor']}, "
@@ -531,7 +577,10 @@ def to_markdown(r):
         for x in items:
             loc = x["path"] + (f":{x['line_start']}" + (f"-{x['line_end']}" if x.get("line_end") and x["line_end"] != x["line_start"] else "")
                                if x.get("line_start") else "")
-            lines.append(f"- [ ] **{x['id']}** `{loc}` — {x['title']} _({x['category']})_")
+            ver = (x.get("verification") or {}).get("verdict")
+            mark = " ✔ confirmed" if ver == "confirmed" else (f" ⬇ downgraded from {x['original_severity']}"
+                                                              if x.get("original_severity") else "")
+            lines.append(f"- [ ] **{x['id']}** `{loc}` — {x['title']} _({x['category']}{mark})_")
             if x.get("description"):
                 lines.append(f"  - Problem: {x['description']}")
             if x.get("suggestion"):
@@ -541,6 +590,12 @@ def to_markdown(r):
                 lines.append(f"  - See: `{where}` {rel.get('note') or ''}".rstrip())
             if x.get("refs"):
                 lines.append(f"  - Refs: {', '.join('`' + ref + '`' for ref in x['refs'])}")
+        lines.append("")
+    if r.get("more"):
+        lines += [f"## More observations ({len(r['more'])}) — lower priority, not in the counts above", ""]
+        for x in r["more"]:
+            loc = x["path"] + (f":{x['line_start']}" if x.get("line_start") else "")
+            lines.append(f"- [ ] **{x['id']}** `{loc}` — {x['title']} _({x['severity']})_")
         lines.append("")
     if r.get("to_confirm"):
         lines += [f"## To confirm ({len(r['to_confirm'])}) — low certainty, check before fixing", ""]
@@ -554,6 +609,73 @@ def to_markdown(r):
     if r.get("limitations"):
         lines += ["## Limitations of this review", ""] + [f"- {l}" for l in r["limitations"]] + [""]
     return "\n".join(lines)
+
+
+def finding_key(kind, x):
+    raw = f"{kind}|{x.get('path')}|{x.get('line_start')}|{x.get('title')}"
+    return hashlib.sha1(raw.encode()).hexdigest()[:10]
+
+
+def load_verdicts(rv):
+    out = {}
+    for vf in sorted(rv.glob("verify-*.json")):
+        if vf.name == "verify-plan.json":
+            continue
+        try:
+            for v in read_json(vf).get("verdicts") or []:
+                if v.get("key"):
+                    out[v["key"]] = v
+        except ValueError:
+            continue
+    return out
+
+
+def cmd_verify_plan(args):
+    """Batches of blocker/major findings for the finding-verifier agent."""
+    rv = Path(args.review_dir).resolve()
+    r = read_json(rv / "review.json")
+    rcfg = (load_config(repo_root()).get("review") or {})
+    sevs = set(rcfg.get("verify_severities") or ["blocker", "major"])
+    size = int(rcfg.get("verify_batch_size", 8))
+    done = load_verdicts(rv)
+    todo = [x for x in r["findings"] if x["severity"] in sevs and x.get("key") not in done]
+    todo.sort(key=lambda x: (x["path"], x.get("line_start") or 0))
+    used = [int(m.group(1)) for m in (re.match(r"verify-(\d+)\.json$", f.name) for f in rv.glob("verify-*.json")) if m]
+    start = max(used, default=0) + 1  # never overwrite verdicts of an earlier round
+    batches = [{"id": start + i // size, "keys": [x["key"] for x in todo[i:i + size]]} for i in range(0, len(todo), size)]
+    write_json(rv / "verify-plan.json", {"kind": r["kind"], "batches": batches})
+    print(f"{len(todo)} finding(s) to verify in {len(batches)} batch(es); {len(done)} already verified")
+    for b in batches:
+        print(f"batch {b['id']}: {len(b['keys'])} finding(s) -> write {rv / ('verify-%d.json' % b['id'])}")
+
+
+def cmd_verify_show(args):
+    rv = Path(args.review_dir).resolve()
+    r = read_json(rv / "review.json")
+    plan = read_json(rv / "verify-plan.json")
+    b = next((b for b in plan["batches"] if b["id"] == args.batch), None)
+    if not b:
+        die(f"verify batch {args.batch} not found")
+    by_key = {x.get("key"): x for x in r["findings"]}
+    print(f"# Verify {len(b['keys'])} {r['kind']}-review finding(s); write {rv / ('verify-%d.json' % b['id'])}")
+    print(f"# repo root: {repo_root()}")
+    src = (r.get("change") or {}).get("sources") or {}
+    print(f"# spec: {', '.join(src.get('spec') or []) or 'none'}   plan: {', '.join(src.get('plan') or []) or 'none'}")
+    for k in b["keys"]:
+        x = by_key.get(k)
+        if not x:
+            continue
+        loc = x["path"] + (f":{x['line_start']}-{x.get('line_end') or x['line_start']}" if x.get("line_start") else "")
+        print(f"\n## key {k}  [{x['severity']}] {x['category']}  {loc}")
+        print(f"title: {x['title']}")
+        if x.get("description"):
+            print(f"description: {x['description']}")
+        for rel in x.get("related") or []:
+            print(f"related: {rel.get('path')}:{rel.get('line_start') or ''} {rel.get('note') or ''}")
+        if x.get("refs"):
+            print(f"refs: {', '.join(x['refs'])}")
+        if x.get("snippet"):
+            print("snippet:\n" + x["snippet"])
 
 
 def cmd_combine(args):
@@ -615,12 +737,18 @@ def main():
     m = sub.add_parser("merge")
     m.add_argument("review_dir")
     m.add_argument("--allow-incomplete", action="store_true")
+    vp = sub.add_parser("verify-plan")
+    vp.add_argument("review_dir")
+    vs = sub.add_parser("verify-show")
+    vs.add_argument("review_dir")
+    vs.add_argument("--batch", type=int, required=True)
     c = sub.add_parser("combine")
     c.add_argument("review_dir")
     c.add_argument("keep")
     c.add_argument("drop", nargs="+")
     args = ap.parse_args()
-    {"prepare": cmd_prepare, "show": cmd_show, "merge": cmd_merge, "combine": cmd_combine}[args.cmd](args)
+    {"prepare": cmd_prepare, "show": cmd_show, "merge": cmd_merge, "combine": cmd_combine,
+     "verify-plan": cmd_verify_plan, "verify-show": cmd_verify_show}[args.cmd](args)
 
 
 if __name__ == "__main__":

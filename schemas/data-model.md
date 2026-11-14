@@ -347,9 +347,19 @@ test for changed behaviour), `minor` (worth fixing: readability, small inconsist
 }
 ```
 
-Findings with `certainty` below `scoring.min_certainty` move from `findings` to `to_confirm`
-in `review.json` (ids `U-…`), are not counted in `summary`, and appear in `review.md` under
-"To confirm".
+`review.py merge` adds a stable `key` (hash of kind, path, line, title) to every finding.
+
+Thresholds and limits (`review` in the config):
+- `min_certainty` per severity (default blocker/major 70, minor/info 85): below it a finding
+  moves to `to_confirm` (ids `U-…`), not counted in `summary`.
+- `max_findings` per kind (default ai 15): blockers always stay; the weakest of the rest move
+  to `more` (ids `M-…`).
+- Independent verification: `review.py verify-plan` batches the blocker/major findings,
+  the `finding-verifier` agent writes `verify-<n>.json`
+  (`{"verdicts": [{"key", "verdict": "confirmed|downgraded|rejected", "severity", "certainty", "reason"}]}`),
+  and the next merge applies them: `verification` on the finding, `original_severity` when
+  downgraded, rejected findings move to `rejected` (ids `X-…`). `review.json.verification`
+  counts verified / unverified / rejected / downgraded.
 
 `id` is assigned by `review.py merge`; the model omits it.
 

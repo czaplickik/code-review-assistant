@@ -11,7 +11,7 @@
       "name": "code-review-assistant",
       "source": "./",
       "description": "Triage AI-generated changes before review: review-mode verdict, risk-ranked files, plan summaries, change explanations and AI, security and spec reviews.",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "category": "code-review",
       "keywords": [
         "code-review",

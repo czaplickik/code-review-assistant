@@ -1,6 +1,6 @@
 {
   "name": "code-review-assistant",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Review AI-generated changes: plan summaries, review-mode verdict with risk-ranked files, change explanations, and AI, security and spec-compliance reviews, kept in a per-feature knowledge base.",
   "author": {
     "name": "Krystian Czaplicki"

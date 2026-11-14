@@ -116,6 +116,16 @@ scoring:
   # review mode, and reports list them separately as "to confirm".
   min_certainty: 70
 
+# AI reviews (ai-review, security-review, spec-review): show only solid findings.
+review:
+  # minimum certainty per severity; below it a finding goes to "To confirm"
+  min_certainty: {blocker: 70, major: 70, minor: 85, info: 85}
+  # at most this many findings in the main list (0 = no limit); the rest goes to "More observations"
+  max_findings: {ai: 15, security: 0, spec: 0}
+  # severities re-checked by the independent finding-verifier agent before the final merge
+  verify_severities: [blocker, major]
+  verify_batch_size: 8
+
 # Review mode policy, evaluated top-down. The first matching rule decides.
 policy:
   human_only:

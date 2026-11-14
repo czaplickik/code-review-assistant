@@ -144,6 +144,17 @@ details.tc .tc-t { font-weight: 700; }
 .fr.unconf .sev.blocker { background: var(--sev-blocker-bg); color: var(--sev-blocker); }
 .fh .ttl .cert-tag { font-weight: 400; font-style: normal; }
 .cert-tag.low { color: var(--warn); font-weight: 700; }
+.vb { display: inline-flex; align-items: center; height: 16px; padding: 0 5px; margin-left: 8px; border-radius: 3px; font: 700 10px/1 var(--font); white-space: nowrap; font-style: normal; vertical-align: 1px; }
+.vb.ok { background: var(--accent-bg); color: var(--accent); }
+.vb.down { background: var(--warn-bg); color: var(--warn); }
+.vb.rej { background: var(--surface-3); color: var(--text-3); margin-left: 0; }
+.ver-box { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; }
+.ver-box .vb { margin-left: 0; }
+.ver-r { width: 100%; color: var(--text-2); font-size: 12.5px; }
+.ver-line { font-size: 12px; color: var(--text-2); margin: -2px 0 10px; }
+.ver-line .ver-warn { color: var(--warn); font-weight: 700; }
+.rej-r { padding: 2px 12px 7px 92px; font-size: 12px; color: var(--text-2); }
+details.tc.rejected .fr { opacity: .55; }
 .files-tbl td.p { font-family: var(--mono); font-size: 11.5px; }
 .files-tbl tr.click { cursor: pointer; }
 .files-tbl tr.click:hover td { background: var(--surface-2); }
@@ -232,13 +243,27 @@ details.tc .tc-t { font-weight: 700; }
   findings.sort(function (a, b) { return sevRank(a.sev) - sevRank(b.sev) || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0) || num(a.raw.line_start) - num(b.raw.line_start) || a.idx - b.idx; });
   var byId = {};
   findings.forEach(function (F) { byId[F.id] = F; });
-  var toConfirm = arr(R.to_confirm).map(obj).filter(function (x) { return Object.keys(x).length; }).map(function (x, i) {
-    var F = { raw: x, idx: i, id: str(x.id) || ('U-' + (i + 1)), sev: sevOf(x.severity), cat: str(x.category),
-      title: str(x.title) || str(x.description).slice(0, 90) || 'Finding', path: str(x.path), inferred: x.confidence !== 'verified', unconfirmed: true };
-    F.loc = loc(F.path, x.line_start, x.line_end);
-    return F;
-  }).sort(function (a, b) { return num(b.raw.certainty) - num(a.raw.certainty); });
+  function sideList(rawList, prefix) {
+    return arr(rawList).map(obj).filter(function (x) { return Object.keys(x).length; }).map(function (x, i) {
+      var F = { raw: x, idx: i, id: str(x.id) || (prefix + '-' + (i + 1)), sev: sevOf(x.severity), cat: str(x.category),
+        title: str(x.title) || str(x.description).slice(0, 90) || 'Finding', path: str(x.path), inferred: x.confidence !== 'verified', side: true };
+      F.loc = loc(F.path, x.line_start, x.line_end);
+      return F;
+    });
+  }
+  var toConfirm = sideList(R.to_confirm, 'U').sort(function (a, b) { return num(b.raw.certainty) - num(a.raw.certainty); });
+  var moreList = sideList(R.more, 'M').sort(function (a, b) { return sevRank(a.sev) - sevRank(b.sev) || a.idx - b.idx; });
+  var rejectedList = sideList(R.rejected, 'X');
   var certOf = function (x) { return x.certainty != null && isFinite(Number(x.certainty)) ? Math.round(Number(x.certainty)) : null; };
+  var verOf = function (x) { var v = obj(x.verification); var d = str(v.verdict).toLowerCase(); return ['confirmed', 'downgraded', 'rejected'].indexOf(d) >= 0 ? { verdict: d, reason: str(v.reason), certainty: certOf(v) } : null; };
+  function verBadge(x) {
+    var v = verOf(x);
+    if (!v) return null;
+    var tip = 'Independent verification: ' + v.verdict + (v.certainty != null ? ' (certainty ' + v.certainty + ')' : '') + (v.reason ? '\n' + v.reason : '');
+    if (v.verdict === 'confirmed') return h('span', { class: 'vb ok', 'data-tip': tip }, '\u2714 confirmed');
+    if (v.verdict === 'downgraded') return h('span', { class: 'vb down', 'data-tip': tip }, '\u2B07 from ' + (sevOf(x.original_severity) && x.original_severity ? str(x.original_severity) : 'higher'));
+    return h('span', { class: 'vb rej', 'data-tip': tip }, '\u2715 rejected');
+  }
 
   var counts = { blocker: 0, major: 0, minor: 0, info: 0 };
   findings.forEach(function (F) { counts[F.sev]++; });
@@ -288,6 +313,16 @@ details.tc .tc-t { font-weight: 700; }
     return l.map(function (p) { return h('span', { class: 'chip ' + (cls || ''), 'data-tip': p }, C.basename(p) || p); });
   }
   var limitations = strs(R.limitations);
+  function verLine() {
+    if (!R.verification || typeof R.verification !== 'object') return null;
+    var V = obj(R.verification), un = num(V.unverified);
+    var n = function (k) { return V[k] != null ? C.fmt(V[k]) : '\u2013'; };
+    return h('div', { class: 'ver-line', 'data-tip': 'Findings re-checked by an independent verification pass' }, [
+      h('span', null, ['Independently confirmed: ', h('b', null, n('verified'))]), ' \u00B7 ',
+      h('span', null, ['rejected ', h('b', null, n('rejected'))]), ' \u00B7 ',
+      h('span', null, ['downgraded ', h('b', null, n('downgraded'))]), ' \u00B7 ',
+      h('span', { class: un > 0 ? 'ver-warn' : null }, ['not verified ', h('b', null, n('unverified'))])]);
+  }
   app.appendChild(h('div', { class: 'rv-head' }, [
     C.card('Scope', kind ? h('code', null, 'review-' + kind) : null, [
       h('div', { class: 'stats' }, [
@@ -297,6 +332,7 @@ details.tc .tc-t { font-weight: 700; }
         stat('Excluded', scope.excluded != null ? num(scope.excluded) : null, 'Files excluded from review'),
         stat('Findings', findings.length)
       ]),
+      verLine(),
       h('div', { class: 'kv' }, [
         h('span', { class: 'k' }, 'Spec'), h('span', { class: 'v' }, pathChips(sources.spec, 'ok')),
         h('span', { class: 'k' }, 'Plan'), h('span', { class: 'v' }, pathChips(sources.plan, 'ok')),
@@ -457,7 +493,7 @@ details.tc .tc-t { font-weight: 700; }
     var head = h('div', { class: 'fh', role: 'button', tabindex: '0', 'aria-expanded': 'false' }, [
       sevBadge(F.sev),
       h('span', { class: 'cat', 'data-tip': catLabel(F.cat) }, catLabel(F.cat)),
-      h('span', { class: 'ttl', 'data-tip': F.title }, [F.title, certOf(F.raw) != null ? h('span', { class: 'cert-tag', style: { 'margin-left': '8px' }, 'data-tip': 'Model certainty (0–100)' }, 'certainty ' + certOf(F.raw)) : null]),
+      h('span', { class: 'ttl', 'data-tip': F.title }, [F.title, verBadge(F.raw), certOf(F.raw) != null ? h('span', { class: 'cert-tag', style: { 'margin-left': '8px' }, 'data-tip': 'Model certainty (0–100)' }, 'certainty ' + certOf(F.raw)) : null]),
       h('span', { class: 'loc', 'data-tip': F.loc || 'no location' }, h('bdi', null, F.loc || '—')),
       C.conf(F.raw.confidence),
       h('span', { class: 'caret' }, '▸')
@@ -496,10 +532,15 @@ details.tc .tc-t { font-weight: 700; }
           return h('li', null, [h('span', { class: 'ico' }, '↳'), h('div', { style: { 'min-width': '0' } }, [h('span', { class: 'loc2', 'data-tip': l }, l), r.note ? h('div', { class: 'note-c' }, str(r.note)) : null]), C.copyBtn(l, 'Copy')]);
         }))]));
     }
+    var vv = verOf(x);
+    if (vv) right.appendChild(h('div', { class: 'blk' }, [h('div', { class: 'bh' }, 'Verification'),
+      h('div', { class: 'ver-box ' + vv.verdict }, [verBadge(x), vv.verdict === 'downgraded' && x.original_severity ? h('span', { class: 'muted' }, sevOf(x.original_severity) + ' \u2192 ' + sevOf(x.severity)) : null,
+        vv.certainty != null ? h('span', { class: 'cert-tag' }, 'certainty ' + vv.certainty) : null, vv.reason ? h('div', { class: 'ver-r' }, vv.reason) : null])]));
     var refs = strs(x.refs);
     if (refs.length) right.appendChild(h('div', { class: 'blk' }, [h('div', { class: 'bh' }, 'References'), C.refsEl(refs, kinds)]));
     right.appendChild(h('div', { class: 'blk meta-line' }, [h('code', null, F.id), h('span', null, catLabel(F.cat)), C.conf(x.confidence),
       x.candidate ? h('span', { 'data-tip': 'Deterministic hint that led to this finding' }, ['candidate ', h('code', null, str(x.candidate))]) : null,
+      x.key ? h('span', { 'data-tip': 'Stable key across runs' }, ['key ', h('code', null, str(x.key))]) : null,
       certOf(x) != null ? h('span', { class: 'cert-tag' }, 'certainty ' + certOf(x)) : null,
       F.loc ? C.copyBtn(F.loc, 'Copy location') : null]));
     return h('div', { class: 'fd' }, [left, right]);
@@ -630,39 +671,45 @@ details.tc .tc-t { font-weight: 700; }
   });
 
   /* ================================================================ */
-  /* to confirm (low certainty)                                       */
+  /* side sections: to confirm, more, rejected (never counted)        */
   /* ================================================================ */
-  if (toConfirm.length) {
-    var tcMd = function () {
-      return ['# ' + title + ': to confirm (low certainty)', ''].concat(toConfirm.map(function (F) {
+  function sideSection(list, o) {
+    if (!list.length) return;
+    var md = function () {
+      return ['# ' + title + ': ' + o.mdTitle, ''].concat(list.map(function (F) {
         var where = F.path ? F.path + (F.raw.line_start != null ? ':' + F.raw.line_start : '') : '(no location)';
-        var c = certOf(F.raw);
-        return '- [ ] [' + F.sev + '] ' + where + ' \u2014 ' + F.title.replace(/\s+/g, ' ') + (c != null ? ' (certainty ' + c + ')' : '') + (F.raw.suggestion ? ' \u2014 ' + str(F.raw.suggestion).replace(/\s+/g, ' ') : '');
+        var c = certOf(F.raw), v = verOf(F.raw);
+        return '- [ ] [' + F.sev + '] ' + where + ' \u2014 ' + F.title.replace(/\s+/g, ' ') + (c != null ? ' (certainty ' + c + ')' : '') +
+          (o.reason && v && v.reason ? ' \u2014 rejected: ' + v.reason.replace(/\s+/g, ' ') : (F.raw.suggestion ? ' \u2014 ' + str(F.raw.suggestion).replace(/\s+/g, ' ') : ''));
       })).join('\n') + '\n';
     };
-    var tcBox = h('div', { class: 'rows tc-rows' });
-    var tcDet = h('details', { class: 'disc tc' }, [h('summary', null, [
-      h('span', { class: 'tc-t' }, 'To confirm (' + toConfirm.length + ')'), h('span', { class: 'muted' }, '— low certainty, not counted'),
-      h('span', { style: { 'margin-left': 'auto' } }, C.copyBtn(tcMd, 'Copy as Markdown'))]), tcBox]);
-    tcDet.addEventListener('toggle', function () {
-      if (!tcDet.open || tcDet._r) return;
-      tcDet._r = true;
-      toConfirm.forEach(function (F) {
-        var c = certOf(F.raw);
+    var box = h('div', { class: 'rows' });
+    var det = h('details', { class: 'disc tc ' + o.cls }, [h('summary', null, [
+      h('span', { class: 'tc-t' }, o.title + ' (' + list.length + ')'), h('span', { class: 'muted' }, '\u2014 ' + o.sub),
+      h('span', { style: { 'margin-left': 'auto' } }, C.copyBtn(md, 'Copy as Markdown'))]), box]);
+    det.addEventListener('toggle', function () {
+      if (!det.open || det._r) return;
+      det._r = true;
+      list.forEach(function (F) {
+        var c = certOf(F.raw), v = verOf(F.raw);
         var head = h('div', { class: 'fh', role: 'button', tabindex: '0' }, [sevBadge(F.sev), h('span', { class: 'cat' }, catLabel(F.cat)),
-          h('span', { class: 'ttl', 'data-tip': F.title }, [F.title, c != null ? h('span', { class: 'cert-tag low', style: { 'margin-left': '8px' } }, 'certainty ' + c) : null]),
+          h('span', { class: 'ttl', 'data-tip': F.title }, [F.title, o.reason ? null : verBadge(F.raw),
+            c != null ? h('span', { class: 'cert-tag' + (o.lowCert ? ' low' : ''), style: { 'margin-left': '8px' } }, 'certainty ' + c) : null]),
           h('span', { class: 'loc', 'data-tip': F.loc || 'no location' }, h('bdi', null, F.loc || '\u2014')), C.conf(F.raw.confidence), h('span', { class: 'caret' }, '\u25B8')]);
         var body = h('div', { hidden: true });
-        var row = h('div', { class: 'fr unconf' + (F.inferred ? ' inferred' : '') }, [head, body]);
+        var row = h('div', { class: 'fr unconf' + (F.inferred ? ' inferred' : '') }, [head,
+          o.reason ? h('div', { class: 'rej-r' }, [h('span', { class: 'vb rej' }, '\u2715 rejected'), ' ', v && v.reason ? v.reason : 'no reason given']) : null, body]);
         head.addEventListener('click', function () {
           if (!row._built) { body.appendChild(detail(F)); row._built = true; }
           body.hidden = !body.hidden; row.classList.toggle('open', !body.hidden);
         });
-        tcBox.appendChild(row);
+        box.appendChild(row);
       });
     });
-    app.appendChild(tcDet);
+    app.appendChild(det);
   }
+  sideSection(moreList, { title: 'More observations', sub: 'lower priority, not counted', mdTitle: 'more observations', cls: 'more' });
+  sideSection(toConfirm, { title: 'To confirm', sub: 'low certainty, not counted', mdTitle: 'to confirm (low certainty)', cls: 'confirm', lowCert: true });
 
   /* ================================================================ */
   /* per-file view                                                    */
@@ -699,6 +746,7 @@ details.tc .tc-t { font-weight: 700; }
     app.appendChild(h('div', { class: 'card' }, body));
   }
 
+  sideSection(rejectedList, { title: 'Rejected by verification', sub: 'not counted, kept for transparency', mdTitle: 'rejected by verification', cls: 'rejected', reason: true });
   app.appendChild(h('div', { class: 'footer' }, ['Generated by code-review-assistant', R.report_dir ? [' · ', h('code', null, str(R.report_dir))] : null,
     R.schema_version != null ? ' · schema v' + str(R.schema_version) : null]));
 

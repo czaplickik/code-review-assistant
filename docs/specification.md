@@ -420,6 +420,14 @@ checklist to paste into a fixing session.
 | `security-review` | entry-point inventory, authorization incl. ownership (IDOR), authentication/tokens, input validation, injection, secrets, crypto, data exposure, SSRF, deserialization, security config, dependencies, sensitive logging, security requirements of the spec |
 | `spec-review` | requirements matrix (implemented / partial / missing / contradicted / unclear, tested?), plan decisions followed/deviated, business rules verified with worked examples, unrequested behaviour, contract mismatches |
 
+Signal over volume: the main list shows only solid findings. Minor/info findings need
+certainty ≥ 85, `ai-review` shows at most 15 (blockers always), the rest is collapsed as "More
+observations". Every blocker/major is re-checked by the independent `finding-verifier` agent
+(plugin agent, reads the code from scratch and tries to refute it) before the final merge;
+rejected findings leave the report, downgraded ones change severity. Security review follows
+an explicit exclusion list (no DoS/rate-limit/header advice, test code, theoretical issues
+without a reachable entry point, …).
+
 Mechanics: `scripts/review.py prepare <kind>` collects and triages the change (reusing an
 impact report of the identical change), computes deterministic candidates (possible dead code,
 debug output, TODO/stubs, duplicated blocks, new helper classes, new dependencies, entry points,
@@ -483,6 +491,7 @@ code-review-assistant-plugin/            repository = marketplace + plugin root
 │   ├── change-plan-summary/   change-impact-score/   change-explanation/
 │   ├── ai-review/   security-review/   spec-review/
 │   └── review-init/   configure/
+├── agents/finding-verifier.md   # independent second opinion on blocker/major findings
 ├── rulesets/              # _base, java-spring, dotnet (section 5) + review checklists
 ├── schemas/data-model.md  # JSON contract between scripts, model and renderers
 ├── scripts/

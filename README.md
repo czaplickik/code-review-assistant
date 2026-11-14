@@ -75,7 +75,9 @@ Deterministic scripts do the repository work; the model only does the semantic p
 **Reviews** (`ai-review`, `security-review`, `spec-review`)
 `review.py prepare` (scope, deterministic candidates, batches) → subagents per batch →
 `review.py merge` (validation, `review.json`, `review.md` fix list; `review.py combine` folds
-duplicates) → `render_report.py review`.
+duplicates) → the `finding-verifier` agent re-checks every blocker/major (`review.py
+verify-plan`) → final merge → `render_report.py review`. Only solid findings reach the main
+list: minor/info need high certainty, `ai-review` shows at most 15, the rest is collapsed.
 
 **Plan summary / explanation** — the model writes JSON (`schemas/data-model.md`),
 `render_report.py` renders and publishes it.

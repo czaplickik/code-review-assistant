@@ -31,6 +31,24 @@ could do, not style. Use the stack-specific checklist listed next to this one.
 | `dependencies` | New or upgraded packages: necessity, maintenance, known vulnerable versions (state that versions could not be checked online) |
 | `logging` | Passwords, tokens, card data, PII in logs; missing audit trail where the spec requires one |
 
+## Do NOT report (exclusions)
+
+These produce noise and are out of scope unless the spec explicitly requires them or the change
+makes them exploitable in a concrete, described way:
+
+- Denial of service, resource exhaustion, missing rate limiting, ReDoS on non-user input.
+- Missing hardening headers, generic "add CSP/HSTS" advice, verbose banners.
+- Theoretical issues without a reachable entry point in this application.
+- Findings in test code, fixtures, mocks, local/dev-only profiles and documentation.
+- Outdated dependencies without a known vulnerability that affects the used code path.
+- Secrets that are clearly placeholders, test values or environment-variable references.
+- Log injection / CRLF in logs, open redirects to the same application, timing differences
+  without a secret comparison.
+- Input validation that the framework already enforces (bean validation, model binding) unless
+  it is disabled or bypassed in the change.
+- "Consider using…" style best-practice advice with no concrete attack.
+- Anything you cannot describe as "attacker does X → gets Y".
+
 ## Severity
 
 - `blocker` — exploitable now: auth bypass, IDOR on sensitive data or money, injection,

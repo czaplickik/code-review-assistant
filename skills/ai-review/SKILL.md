@@ -61,10 +61,39 @@ yourself): the same problem reported by several batches becomes one finding with
 locations in `related` — edit the batch files (a dropped finding's candidate goes to
 `dismissed_candidates` with "merged"), then merge again.
 
+## Verify (independent second opinion)
+
+After the first merge, have every blocker/major re-checked by the **finding-verifier** agent
+of this plugin (it reads the code from scratch and tries to refute each finding):
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/review.py verify-plan <REVIEW>
+```
+
+For each printed batch dispatch one `finding-verifier` agent (Agent tool; if that agent type
+is not available, a general-purpose agent with the same brief), up to 6 in parallel:
+
+> Verify review findings (you did not write them). Repository root: `<repo root>`. Run
+> `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/review.py verify-show <REVIEW> --batch <N>` to get
+> them, follow `${CLAUDE_PLUGIN_ROOT}/agents/finding-verifier.md`, and write
+> `<REVIEW>/verify-<N>.json`. Reply with one line: counts per verdict.
+
+Then merge again. If `merge` still reports unverified blocker/major findings (findings that
+moved up after others were rejected or downgraded), run `verify-plan` and the verifier once
+more for those only. Rejected findings leave the report (kept in review.json), downgraded ones
+change severity, minor/info need certainty ≥ 85, and only the strongest findings stay in the
+main list (`review.max_findings` in the config):
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/review.py merge <REVIEW>
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/render_report.py review <REVIEW>
+```
+
 ## 4. Answer in the terminal
 
 In the user's language, short:
-1. Counts: blocker / major / minor / info.
+1. Counts: blocker / major / minor / info, and how many were verified / rejected by the
+   verifier.
 2. Up to 7 most important findings: `[severity] path:line — title`.
 3. The published `review-<kind>.html` and `review-<kind>.md` in the feature folder and its `index.md` (printed by `render_report.py`) — say that `review.md` is the checklist to paste
    into a fixing session.
